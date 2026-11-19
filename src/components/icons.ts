@@ -9,6 +9,7 @@ export {
   BookOpenIcon,
   CameraIcon,
   CaretLeftIcon,
+  CaretRightIcon,
   CheckIcon,
   DotsThreeIcon,
   FeatherIcon,

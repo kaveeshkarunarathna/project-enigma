@@ -7,11 +7,16 @@ import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { BookBookmarkIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
+import { Pressable } from '@/components/Pressable';
 import { Section } from '@/components/Section';
+import { WeekStrip } from '@/components/sky/WeekStrip';
+import { Text } from '@/components/Text';
 import { currentBook, listBooks } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
 import { bookCaption } from '@/features/books/format';
+import { useThisWeek } from '@/features/moonlog/useMoonLog';
+import { weekMessage } from '@/domain/moonlog';
 import { space } from '@/theme/tokens';
 
 export default function TonightScreen() {
@@ -19,6 +24,7 @@ export default function TonightScreen() {
   const { data: book, loading } = useLiveQuery(() => currentBook(db), ['books', 'sessions']);
   const { data: reading } = useLiveQuery(() => listBooks(db, 'reading'), ['books']);
   const others = (reading ?? []).filter((b) => b.id !== book?.id);
+  const { week, today } = useThisWeek();
 
   return (
     <Screen
@@ -51,6 +57,18 @@ export default function TonightScreen() {
         </View>
       ) : null}
 
+      <Section title="This week">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityHint="Opens the Moon Log"
+          haptic={false}
+          onPress={() => router.push('/moonlog')}
+          style={styles.week}>
+          <WeekStrip week={week} today={today} />
+          <Text variant="caption">{weekMessage(week)}</Text>
+        </Pressable>
+      </Section>
+
       {others.length ? (
         <Section title="Also reading">
           {others.map((b) => (
@@ -71,4 +89,5 @@ export default function TonightScreen() {
 
 const styles = StyleSheet.create({
   current: { gap: space.lg },
+  week: { gap: space.md, paddingTop: space.lg },
 });

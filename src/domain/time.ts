@@ -48,3 +48,38 @@ export function weekOf(key: string): string[] {
 export function weekdayInitial(key: string): string {
   return ['S', 'M', 'T', 'W', 'T', 'F', 'S'][parseNightKey(key).getDay()];
 }
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+export function monthName(month: number): string {
+  return MONTH_NAMES[month];
+}
+
+/**
+ * The nights of a month laid out in Monday-first weeks. Days outside the month
+ * are null, so the grid always has 7 columns.
+ */
+export function monthGrid(year: number, month: number): (string | null)[][] {
+  const first = new Date(year, month, 1);
+  const days = new Date(year, month + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7;
+  const cells: (string | null)[] = Array.from({ length: lead }, () => null);
+  for (let d = 1; d <= days; d++) cells.push(localDateKey(new Date(year, month, d)));
+  while (cells.length % 7) cells.push(null);
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}

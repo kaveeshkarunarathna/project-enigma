@@ -2,7 +2,7 @@
 import { moonFor, weekMessage, weekSummary } from '@/domain/moonlog';
 import { bookCompletion, litBeads, ringSize, sessionStardust, starBrightness } from '@/domain/progress';
 import { checkQuote, normalizeQuote } from '@/domain/quotes';
-import { addDays, nightKey, weekOf } from '@/domain/time';
+import { addDays, monthGrid, nightKey, weekOf } from '@/domain/time';
 
 describe('nights', () => {
   it('rolls over at 4 AM, not midnight', () => {
@@ -110,5 +110,15 @@ describe('quotes', () => {
     expect(checkQuote('word '.repeat(30)).status).toBe('ok');
     expect(checkQuote('word '.repeat(80)).status).toBe('long');
     expect(checkQuote('word '.repeat(121)).status).toBe('too-long');
+  });
+});
+
+describe('month grid', () => {
+  it('lays out November 2026 Monday-first', () => {
+    const grid = monthGrid(2026, 10);
+    // 1 Nov 2026 is a Sunday, so six blanks lead
+    expect(grid[0]).toEqual([null, null, null, null, null, null, '2026-11-01']);
+    expect(grid.every((w) => w.length === 7)).toBe(true);
+    expect(grid.flat().filter(Boolean)).toHaveLength(30);
   });
 });
