@@ -11,7 +11,7 @@ import {
   moveBookInUserPath,
   syncCuratedPaths,
 } from '@/data/paths';
-import { logSession, nightRecords, skyStats } from '@/data/sessions';
+import { logSession, nightRecords, recordSessionProgress, skyStats } from '@/data/sessions';
 import { getSettings, setSetting } from '@/data/settings';
 
 import { createTestDb } from './testDb';
@@ -110,6 +110,21 @@ describe('sessions and the moon log', () => {
       { night: '2026-11-18', goalMinutes: 30, seconds: 360, reflected: true },
     ]);
     expect((await getSettings(db)).goalMinutes).toBe(30);
+  });
+
+  it('records where the reader stopped after the lamp saved the session', async () => {
+    const db = await createTestDb();
+    const book = await addBook(db, { title: 'Candide', pageCount: 100 });
+    const { session } = await logSession(db, {
+      bookId: book.id,
+      startedAt: at(21),
+      endedAt: at(21, 15),
+      seconds: 900,
+    });
+    expect(session.stardust).toBe(15);
+    const progress = await recordSessionProgress(db, session.id, { pageTo: 100 });
+    expect(progress).toEqual({ beadsLit: 5, stardust: 25, reachedEnd: true });
+    expect(await getBook(db, book.id)).toMatchObject({ currentPage: 100, stardust: 40 });
   });
 
   it('adds up lifetime stats', async () => {

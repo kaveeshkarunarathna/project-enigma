@@ -13,6 +13,7 @@ import { Suspense, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { DataProvider } from '@/data/DataProvider';
+import { useSkiaReady } from '@/features/platform/useSkiaReady';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -29,6 +30,10 @@ function RootStack() {
           animation: reduceMotion ? 'none' : 'slide_from_right',
         }}>
         <Stack.Screen name="(tabs)" options={{ animation: reduceMotion ? 'none' : 'fade' }} />
+        <Stack.Screen
+          name="lamp"
+          options={{ presentation: 'fullScreenModal', animation: reduceMotion ? 'none' : 'fade' }}
+        />
       </Stack>
     </>
   );
@@ -43,7 +48,8 @@ export default function RootLayout() {
     Literata_600SemiBold,
   });
 
-  const ready = fontsLoaded || fontError;
+  const skiaReady = useSkiaReady();
+  const ready = (fontsLoaded || fontError) && skiaReady;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});

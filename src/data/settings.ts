@@ -49,3 +49,30 @@ export async function setSetting<K extends keyof Settings>(
   );
   notifyChanged('settings');
 }
+
+/**
+ * Internal app state that is not a user setting, such as a running lamp.
+ * Stored in the same table under a `_` prefix so it never mixes with settings.
+ */
+export async function getState<T>(db: Db, key: string): Promise<T | null> {
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [
+    `_${key}`,
+  ]);
+  if (!row) return null;
+  try {
+    return JSON.parse(row.value) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function setState(db: Db, key: string, value: unknown): Promise<void> {
+  if (value === null || value === undefined) {
+    await db.runAsync('DELETE FROM settings WHERE key = ?', [`_${key}`]);
+    return;
+  }
+  await db.runAsync(
+    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    [`_${key}`, JSON.stringify(value)],
+  );
+}

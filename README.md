@@ -36,6 +36,13 @@ Scan the QR code with the iPhone camera and the app opens in Expo Go.
 - **Features with custom native code** (the page scanner, from phase 9) need a
   development build: `npx expo run:ios --device` with Xcode and a free Apple ID.
 
+## Web preview
+
+For checking screens without a phone: `npx expo export --platform web`, then
+serve the `dist` folder with COOP/COEP headers (see
+[the lamp notes](docs/features/04-lamp.md#web-preview)). The real app is iOS
+and Android.
+
 ## Checks
 
 ```bash

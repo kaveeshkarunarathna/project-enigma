@@ -7,7 +7,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 1 | Project setup, design tokens, fonts, tab shell | Done |
 | 2 | On-device storage: books, sessions, nights, paths, journal | Done |
 | 3 | Book search with Open Library, and the shelf | Done |
-| 4 | The Lamp: reading timer and sessions | Planned |
+| 4 | The Lamp: reading timer and sessions | Done |
 | 5 | Moon Log: daily goal, week strip, 3D moons | Planned |
 | 6 | Tonight screen with the book star and chapter orbit | Planned |
 | 7 | Daily reflection prompts and the thinking journal | Planned |

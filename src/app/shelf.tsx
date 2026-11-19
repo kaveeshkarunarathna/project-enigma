@@ -33,7 +33,7 @@ export default function ShelfScreen() {
       {!loading && !groups.length ? (
         <EmptyState
           heading="An empty shelf, for now"
-          body="Search the open library catalog, or add a book by hand."
+          body="Search the Open Library catalog, or add a book by hand."
           action={<Button label="Find a book" onPress={() => router.push('/search')} />}
         />
       ) : null}

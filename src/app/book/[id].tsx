@@ -65,7 +65,10 @@ export default function BookScreen() {
 
       <PrimaryAction book={book} />
 
-      <ProgressEditor book={book} />
+      <ProgressEditor
+        key={`${book.currentPage}:${book.pageCount}:${book.chaptersDone}:${book.chapterCount}`}
+        book={book}
+      />
 
       <Section title="Shelf">
         <View style={styles.links}>

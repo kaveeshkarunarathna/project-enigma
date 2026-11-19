@@ -3,7 +3,7 @@ import { newId, type Db } from './db';
 import { notifyChanged } from './live';
 import { getSettings } from './settings';
 import type { NightRecord } from '@/domain/moonlog';
-import { litBeads, sessionStardust } from '@/domain/progress';
+import { litBeads, sessionStardust, STARDUST_PER_BEAD } from '@/domain/progress';
 import { nightKey } from '@/domain/time';
 
 export type Session = {
@@ -150,6 +150,53 @@ export async function logSession(db: Db, input: NewSession): Promise<SessionResu
   notifyChanged('sessions', 'nights', 'books');
   const row = await db.getFirstAsync<SessionRow>('SELECT * FROM sessions WHERE id = ?', [id]);
   return { session: toSession(row!), beadsLit, firstOfNight };
+}
+
+export type ProgressResult = { beadsLit: number; stardust: number; reachedEnd: boolean };
+
+/**
+ * Records where the reader stopped, after the session was already saved by
+ * the lamp. Lights any new beads and adds their stardust to both the session
+ * and the book. Pages never move backwards.
+ */
+export async function recordSessionProgress(
+  db: Db,
+  sessionId: string,
+  input: { pageTo?: number | null; chaptersCompleted?: number },
+): Promise<ProgressResult> {
+  let result: ProgressResult = { beadsLit: 0, stardust: 0, reachedEnd: false };
+  await db.withTransactionAsync(async () => {
+    const row = await db.getFirstAsync<SessionRow>('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    if (!row?.book_id) return;
+    const book = await getBook(db, row.book_id);
+    if (!book) return;
+    const cap = book.pageCount ?? Number.MAX_SAFE_INTEGER;
+    const pageTo =
+      input.pageTo != null && input.pageTo > 0 ? Math.min(Math.round(input.pageTo), cap) : book.currentPage;
+    const added = Math.max(0, Math.round(input.chaptersCompleted ?? 0));
+    const chaptersDone = Math.min(book.chaptersDone + added, book.chapterCount ?? Number.MAX_SAFE_INTEGER);
+    const currentPage = Math.max(pageTo, book.currentPage);
+    const before = litBeads({ ...book, finished: false });
+    const after = litBeads({ ...book, currentPage, chaptersDone, finished: false });
+    const beadsLit = Math.max(0, after - before);
+    const stardust = beadsLit * STARDUST_PER_BEAD;
+
+    await db.runAsync(
+      'UPDATE books SET current_page = ?, chapters_done = ?, stardust = stardust + ? WHERE id = ?',
+      [currentPage, chaptersDone, stardust, book.id],
+    );
+    await db.runAsync(
+      `UPDATE sessions SET page_to = COALESCE(?, page_to), chapters_completed = chapters_completed + ?,
+         stardust = stardust + ? WHERE id = ?`,
+      [input.pageTo != null && input.pageTo > 0 ? pageTo : null, added, stardust, sessionId],
+    );
+    const reachedEnd =
+      (book.pageCount != null && currentPage >= book.pageCount) ||
+      (book.chapterCount != null && chaptersDone >= book.chapterCount);
+    result = { beadsLit, stardust, reachedEnd };
+  });
+  notifyChanged('sessions', 'books');
+  return result;
 }
 
 export async function listSessions(db: Db, opts: { bookId?: string; night?: string; limit?: number } = {}) {
