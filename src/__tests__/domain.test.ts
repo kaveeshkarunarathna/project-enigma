@@ -2,6 +2,7 @@
 import { moonFor, weekMessage, weekSummary } from '@/domain/moonlog';
 import { bookCompletion, litBeads, ringSize, sessionStardust, starBrightness } from '@/domain/progress';
 import { checkQuote, normalizeQuote } from '@/domain/quotes';
+import { layoutSky } from '@/domain/sky';
 import { addDays, monthGrid, nightKey, weekOf } from '@/domain/time';
 
 describe('nights', () => {
@@ -120,5 +121,28 @@ describe('month grid', () => {
     expect(grid[0]).toEqual([null, null, null, null, null, null, '2026-11-01']);
     expect(grid.every((w) => w.length === 7)).toBe(true);
     expect(grid.flat().filter(Boolean)).toHaveLength(30);
+  });
+});
+
+describe('sky layout', () => {
+  it('keeps old stars in the same direction when the sky grows', () => {
+    const nights = Array.from({ length: 30 }, (_, i) => ({
+      night: `2026-10-${String(i + 1).padStart(2, '0')}`,
+      seconds: 600,
+    }));
+    const before = layoutSky(nights, 300, 300);
+    const after = layoutSky([...nights, { night: '2026-11-01', seconds: 600 }], 300, 300);
+    const angle = (s: { x: number; y: number }) => Math.atan2(s.y - 150, s.x - 150);
+    before.forEach((s, i) => expect(angle(after[i])).toBeCloseTo(angle(s), 6));
+  });
+
+  it('keeps stars inside the canvas', () => {
+    const nights = Array.from({ length: 400 }, (_, i) => ({ night: `n${i}`, seconds: 1200 }));
+    for (const s of layoutSky(nights, 300, 300)) {
+      expect(s.x).toBeGreaterThan(0);
+      expect(s.x).toBeLessThan(300);
+      expect(s.y).toBeGreaterThan(0);
+      expect(s.y).toBeLessThan(300);
+    }
   });
 });

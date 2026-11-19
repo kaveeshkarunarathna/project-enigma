@@ -73,7 +73,13 @@ export default function BookScreen() {
       <Section title="Shelf">
         <View style={styles.links}>
           {book.status !== 'want' && book.status !== 'finished' ? (
-            <TextLink label="Mark as finished" onPress={() => setBookStatus(db, book.id, 'finished')} />
+            <TextLink
+              label="Mark as finished"
+              onPress={async () => {
+                await setBookStatus(db, book.id, 'finished');
+                router.push({ pathname: '/ignite', params: { bookId: book.id } });
+              }}
+            />
           ) : null}
           {book.status === 'reading' ? (
             <TextLink label="Rest this book for now" onPress={() => setBookStatus(db, book.id, 'paused')} />

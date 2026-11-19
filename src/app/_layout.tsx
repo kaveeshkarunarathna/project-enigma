@@ -31,6 +31,10 @@ function RootStack() {
         }}>
         <Stack.Screen name="(tabs)" options={{ animation: reduceMotion ? 'none' : 'fade' }} />
         <Stack.Screen
+          name="ignite"
+          options={{ presentation: 'fullScreenModal', animation: reduceMotion ? 'none' : 'fade' }}
+        />
+        <Stack.Screen
           name="lamp"
           options={{ presentation: 'fullScreenModal', animation: reduceMotion ? 'none' : 'fade' }}
         />

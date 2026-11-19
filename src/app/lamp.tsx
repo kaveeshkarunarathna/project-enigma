@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
@@ -344,7 +344,11 @@ function AfterSession({
           sessionId: result.session.id,
         });
       }
-      goBack();
+      if (markFinished && result.session.bookId) {
+        router.replace({ pathname: '/ignite', params: { bookId: result.session.bookId } });
+      } else {
+        goBack();
+      }
     } finally {
       setBusy(false);
     }

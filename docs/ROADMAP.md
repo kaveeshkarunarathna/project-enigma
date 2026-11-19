@@ -9,7 +9,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 3 | Book search with Open Library, and the shelf | Done |
 | 4 | The Lamp: reading timer and sessions | Done |
 | 5 | Moon Log: daily goal, week strip, 3D moons | Done |
-| 6 | Tonight screen with the book star and chapter orbit | Planned |
+| 6 | Tonight with the book star, Your sky, the finished-book moment | Done |
 | 7 | Daily reflection prompts and the thinking journal | Planned |
 | 8 | Curated paths, custom paths, constellations | Planned |
 | 9 | Page scanner for journal quotes (on-device only) | Planned |
