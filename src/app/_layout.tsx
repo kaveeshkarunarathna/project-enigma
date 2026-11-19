@@ -12,11 +12,18 @@ import { StatusBar } from 'expo-status-bar';
 import { Suspense, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { DataProvider } from '@/data/DataProvider';
+import { CURATED_PATHS } from '@/content/paths';
+import { DataProvider, onDatabaseReady } from '@/data/DataProvider';
+import { syncCuratedPaths } from '@/data/paths';
 import { useSkiaReady } from '@/features/platform/useSkiaReady';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Install or refresh the curated reading paths bundled with this version.
+onDatabaseReady(async (db) => {
+  await syncCuratedPaths(db, CURATED_PATHS);
+});
 
 function RootStack() {
   const { colors, scheme, reduceMotion } = useTheme();

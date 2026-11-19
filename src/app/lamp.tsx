@@ -43,6 +43,7 @@ import {
   type LampState,
 } from '@/domain/lamp';
 import { promptFor } from '@/domain/prompts';
+import { useReaderGenre } from '@/features/paths/useReaderGenre';
 import { litBeads, ringSize, sessionStardust, starBrightness, bookCompletion } from '@/domain/progress';
 import { useTheme } from '@/theme/theme';
 import { space } from '@/theme/tokens';
@@ -321,7 +322,8 @@ function AfterSession({
   const [page, setPage] = useState('');
   const [chapters, setChapters] = useState(0);
   const [thought, setThought] = useState('');
-  const prompt = promptFor(result.session.night);
+  const genre = useReaderGenre(result.session.bookId);
+  const prompt = promptFor(result.session.night, genre);
   const [finished, setFinished] = useState(false);
   const [busy, setBusy] = useState(false);
   const minutes = Math.max(1, Math.round(result.session.seconds / 60));

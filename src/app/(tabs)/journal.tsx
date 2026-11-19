@@ -18,6 +18,7 @@ import { useDb } from '@/data/DataProvider';
 import { listEntries, type EntryKind } from '@/data/journal';
 import { useLiveQuery } from '@/data/live';
 import { promptFor } from '@/domain/prompts';
+import { useReaderGenre } from '@/features/paths/useReaderGenre';
 import { nightKey } from '@/domain/time';
 import { EntryItem } from '@/features/journal/EntryItem';
 import { space } from '@/theme/tokens';
@@ -34,7 +35,8 @@ export default function JournalScreen() {
   const [kind, setKind] = useState<EntryKind | null>(null);
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
-  const prompt = promptFor(nightKey(), null, offset);
+  const genre = useReaderGenre();
+  const prompt = promptFor(nightKey(), genre, offset);
   const { data: book } = useLiveQuery(() => currentBook(db), ['books', 'sessions']);
   const { data: entries, loading } = useLiveQuery(
     () => listEntries(db, { kind: kind ?? undefined, search }),
