@@ -31,7 +31,7 @@ src/
   data/            SQLite schema, migrations and repositories (books, sessions,
                    journal, paths, settings), plus useLiveQuery.
   features/        Feature helpers shared by several screens (formatting, hooks).
-  services/        Network calls. Only the Open Library catalog, for book facts and covers.
+  services/        Device and network services: the Open Library catalog (book facts and covers) and the on-device page scanner.
   domain/          Pure rules: nights, Moon Log, progress, quotes. No React, no SQL.
   theme/           Design tokens and the theme provider.
   __tests__/       Unit tests (Jest). Data tests run on in-memory SQLite.

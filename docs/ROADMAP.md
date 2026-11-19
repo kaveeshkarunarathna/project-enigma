@@ -12,7 +12,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 6 | Tonight with the book star, Your sky, the finished-book moment | Done |
 | 7 | Daily reflection prompts and the thinking journal | Done |
 | 8 | Curated paths, custom paths, constellations | Done |
-| 9 | Page scanner for journal quotes (on-device only) | Planned |
+| 9 | Page scanner for journal quotes (on-device only) | Done |
 | 10 | Gentle reminders, settings, polish | Planned |
 
 ## Later

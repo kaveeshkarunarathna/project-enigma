@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -12,6 +12,8 @@ import { useDb } from '@/data/DataProvider';
 import { addEntry, type EntryKind } from '@/data/journal';
 import { checkQuote, QUOTE_HARD_LIMIT_WORDS, QUOTE_SOFT_LIMIT_WORDS } from '@/domain/quotes';
 import { BookPicker } from '@/features/journal/BookPicker';
+import { takePassage } from '@/features/scan/handoff';
+import { Pressable } from '@/components/Pressable';
 import { space } from '@/theme/tokens';
 
 type Params = {
@@ -34,8 +36,20 @@ export default function WriteScreen() {
   const [body, setBody] = useState('');
   const [quote, setQuote] = useState(params.quote ?? '');
   const [page, setPage] = useState(params.page ?? '');
+  const [source, setSource] = useState<'typed' | 'scanned'>(params.source ?? 'typed');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A passage chosen in the scanner comes back here when this screen regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      const scanned = takePassage();
+      if (!scanned) return;
+      setQuote(scanned.quote);
+      setSource('scanned');
+      if (scanned.page) setPage((p) => p || String(scanned.page));
+    }, []),
+  );
 
   const check = checkQuote(quote);
   const quoteNote =
@@ -61,7 +75,7 @@ export default function WriteScreen() {
         promptId: kind === 'reflection' ? (prompt?.id ?? null) : null,
         quoteText: kind === 'quote' ? quote : null,
         quotePage: kind === 'quote' && n > 0 ? n : null,
-        quoteSource: kind === 'quote' ? (params.source ?? 'typed') : null,
+        quoteSource: kind === 'quote' ? source : null,
       });
       if (router.canGoBack()) goBack();
       else router.replace('/journal');
@@ -106,6 +120,16 @@ export default function WriteScreen() {
             note={quoteNote}
             autoFocus={!quote}
           />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityHint="Reads a page with the camera, on your phone"
+            haptic={false}
+            onPress={() =>
+              router.push({ pathname: '/scan', params: { from: 'write', bookId: bookId ?? '' } })
+            }
+            style={styles.scan}>
+            <Text tone="aurora">{quote ? 'Scan the page again' : 'Scan the page instead'}</Text>
+          </Pressable>
           <TextField
             label="Page"
             value={page}
@@ -146,4 +170,5 @@ const styles = StyleSheet.create({
   promptText: { fontSize: 20, lineHeight: 28, fontFamily: 'Literata_400Regular_Italic' },
   field: { gap: space.xs },
   action: { alignSelf: 'flex-start' },
+  scan: { alignSelf: 'flex-start', paddingVertical: space.xs },
 });
