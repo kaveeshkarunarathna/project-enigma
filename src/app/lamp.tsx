@@ -24,6 +24,7 @@ import { goBack } from '@/components/Screen';
 import { BookStar } from '@/components/sky/BookStar';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
+import { PROMPT_AUTHOR } from '@/content/prompts';
 import { getBook, setBookStatus } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { addEntry } from '@/data/journal';
@@ -41,6 +42,7 @@ import {
   targetMs,
   type LampState,
 } from '@/domain/lamp';
+import { promptFor } from '@/domain/prompts';
 import { litBeads, ringSize, sessionStardust, starBrightness, bookCompletion } from '@/domain/progress';
 import { useTheme } from '@/theme/theme';
 import { space } from '@/theme/tokens';
@@ -319,6 +321,7 @@ function AfterSession({
   const [page, setPage] = useState('');
   const [chapters, setChapters] = useState(0);
   const [thought, setThought] = useState('');
+  const prompt = promptFor(result.session.night);
   const [finished, setFinished] = useState(false);
   const [busy, setBusy] = useState(false);
   const minutes = Math.max(1, Math.round(result.session.seconds / 60));
@@ -338,8 +341,9 @@ function AfterSession({
       if (markFinished && result.session.bookId) await setBookStatus(db, result.session.bookId, 'finished');
       if (thought.trim()) {
         await addEntry(db, {
-          kind: 'note',
+          kind: 'reflection',
           body: thought,
+          promptId: prompt.id,
           bookId: result.session.bookId,
           sessionId: result.session.id,
         });
@@ -400,12 +404,18 @@ function AfterSession({
         </View>
       ) : null}
 
+      <View style={styles.question}>
+        <Text variant="caption">Tonight’s question, if you like</Text>
+        <Text style={styles.questionText}>{prompt.text}</Text>
+        <Text variant="caption">{PROMPT_AUTHOR}</Text>
+      </View>
       <TextField
-        label="A thought, if one came"
-        placeholder="It stays on your phone."
+        accessibilityLabel={`Your answer to: ${prompt.text}`}
+        placeholder="A line or two. It stays on your phone."
         value={thought}
         onChangeText={setThought}
         multiline
+        hint="Answering adds a teal halo to tonight’s moon."
       />
 
       <View style={styles.row}>
@@ -432,4 +442,6 @@ const styles = StyleSheet.create({
   fields: { gap: space.lg },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   check: { paddingVertical: space.sm, alignSelf: 'flex-start' },
+  question: { gap: space.xs },
+  questionText: { fontFamily: 'Literata_400Regular_Italic', fontSize: 18, lineHeight: 26 },
 });

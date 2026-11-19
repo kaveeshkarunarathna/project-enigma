@@ -27,6 +27,7 @@ src/
     search.tsx     Find a book (Open Library).
     book/          Book page and add-by-hand form.
   components/      Shared UI: Text, Button, Pressable, Screen, StarField, TabBar.
+  content/         Writing bundled with the app: reflection prompts, curated paths.
   data/            SQLite schema, migrations and repositories (books, sessions,
                    journal, paths, settings), plus useLiveQuery.
   features/        Feature helpers shared by several screens (formatting, hooks).

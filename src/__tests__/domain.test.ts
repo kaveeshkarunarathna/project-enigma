@@ -1,6 +1,8 @@
 /// <reference types="jest" />
+import { PROMPTS } from '@/content/prompts';
 import { moonFor, weekMessage, weekSummary } from '@/domain/moonlog';
 import { bookCompletion, litBeads, ringSize, sessionStardust, starBrightness } from '@/domain/progress';
+import { promptFor } from '@/domain/prompts';
 import { checkQuote, normalizeQuote } from '@/domain/quotes';
 import { layoutSky } from '@/domain/sky';
 import { addDays, monthGrid, nightKey, weekOf } from '@/domain/time';
@@ -144,5 +146,26 @@ describe('sky layout', () => {
       expect(s.y).toBeGreaterThan(0);
       expect(s.y).toBeLessThan(300);
     }
+  });
+});
+
+describe('prompts', () => {
+  it('has unique ids and no empty prompts', () => {
+    expect(new Set(PROMPTS.map((p) => p.id)).size).toBe(PROMPTS.length);
+    expect(PROMPTS.every((p) => p.text.trim().length > 10)).toBe(true);
+  });
+
+  it('keeps the same prompt all night and changes between nights', () => {
+    expect(promptFor('2026-11-19')).toEqual(promptFor('2026-11-19'));
+    const week = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'].map(
+      (n) => promptFor(n).id,
+    );
+    expect(new Set(week).size).toBeGreaterThan(1);
+  });
+
+  it('steps to another prompt on request, and respects genre', () => {
+    expect(promptFor('2026-11-19', null, 1).id).not.toBe(promptFor('2026-11-19').id);
+    for (let i = 0; i < 20; i++)
+      expect(['fantasy', 'any']).toContain(promptFor('2026-11-19', 'fantasy', i).genre);
   });
 });
