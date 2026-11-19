@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { Constellation } from '@/components/sky/Constellation';
 import { Text } from '@/components/Text';
+import { CURATED_PATHS } from '@/content/paths';
 import { listBooks } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
@@ -28,7 +29,11 @@ export default function PathsScreen() {
   const { data: shelf } = useLiveQuery(() => listBooks(db), ['books']);
 
   const yours = (paths ?? []).filter((p) => p.joinedAt || p.source === 'user');
-  const curated = (paths ?? []).filter((p) => p.source === 'curated' && !p.joinedAt);
+  // Curated paths keep the order they are written in, easiest first.
+  const seedOrder = (id: string) => CURATED_PATHS.findIndex((c) => c.id === id);
+  const curated = (paths ?? [])
+    .filter((p) => p.source === 'curated' && !p.joinedAt)
+    .sort((a, b) => seedOrder(a.id) - seedOrder(b.id));
   // Genres in a fixed order (philosophy first), not in database order.
   const present = new Set(curated.map((p) => p.genre ?? 'any'));
   const genres = GENRES.filter((g) => present.has(g));
