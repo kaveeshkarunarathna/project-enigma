@@ -7,7 +7,8 @@
 | Navigation | Expo Router (`src/app`), JS tabs with a custom tab bar |
 | Drawing (stars, moons, orbits) | `@shopify/react-native-skia` |
 | Motion | `react-native-reanimated` 4 |
-| Storage | `expo-sqlite` (from phase 2) |
+| Storage | `expo-sqlite` |
+| Tests | Jest (`jest-expo` preset), `node:sqlite` for data tests |
 | Fonts | `@expo-google-fonts/gloock`, `@expo-google-fonts/literata` |
 | Icons | `phosphor-react-native` (light weight) |
 | Haptics | `expo-haptics` |
@@ -23,7 +24,11 @@ src/
     _layout.tsx    Loads fonts, provides the theme, root stack.
     (tabs)/        Tonight, Paths, Journal, Sky.
   components/      Shared UI: Text, Button, Pressable, Screen, StarField, TabBar.
+  data/            SQLite schema, migrations and repositories (books, sessions,
+                   journal, paths, settings), plus useLiveQuery.
+  domain/          Pure rules: nights, Moon Log, progress, quotes. No React, no SQL.
   theme/           Design tokens and the theme provider.
+  __tests__/       Unit tests (Jest). Data tests run on in-memory SQLite.
 docs/              Architecture, design system, feature notes, roadmap.
 ```
 
@@ -38,3 +43,11 @@ Non-route code never lives in `src/app/`. Imports use the `@/` alias for `src/`.
 - Shared values are read and written with `.get()` and `.set()` so the React
   Compiler stays happy.
 - `ios/` and `android/` are generated. Configure native behaviour in `app.json`.
+
+## Data flow
+
+Screens call repository functions with the database from `useDb()`. Reads go
+through `useLiveQuery(query, tables)`. Writes call `notifyChanged(tables)`, and
+any live query reading those tables runs again. Rules that decide numbers
+(moon fill, beads, stardust) live in `src/domain` so they are tested once and
+shown the same everywhere.

@@ -9,9 +9,10 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { DataProvider } from '@/data/DataProvider';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -53,7 +54,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <RootStack />
+        <Suspense fallback={null}>
+          <DataProvider>
+            <RootStack />
+          </DataProvider>
+        </Suspense>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
