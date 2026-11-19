@@ -9,12 +9,16 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, type ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { CURATED_PATHS } from '@/content/paths';
-import { DataProvider, onDatabaseReady } from '@/data/DataProvider';
+import { DataProvider, onDatabaseReady, useDb } from '@/data/DataProvider';
+import { useLiveQuery } from '@/data/live';
 import { syncCuratedPaths } from '@/data/paths';
+import { listSessions } from '@/data/sessions';
+import { getSettings } from '@/data/settings';
+import { syncReminders } from '@/features/reminders/reminders';
 import { useSkiaReady } from '@/features/platform/useSkiaReady';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
@@ -24,6 +28,26 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 onDatabaseReady(async (db) => {
   await syncCuratedPaths(db, CURATED_PATHS);
 });
+
+/**
+ * Applies settings that reach the whole app: the chosen sky (theme), and the
+ * evening reminders, planned again when the app opens, the reminder time
+ * changes, or a reading session is logged.
+ */
+function SettingsBridge({ children }: { children: ReactNode }) {
+  const db = useDb();
+  const { data: settings } = useLiveQuery(() => getSettings(db), ['settings']);
+  const { data: latest } = useLiveQuery(() => listSessions(db, { limit: 1 }), ['sessions']);
+  const reminderTime = settings?.reminderTime;
+  const latestId = latest?.[0]?.id;
+
+  useEffect(() => {
+    if (settings) syncReminders(db);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, reminderTime, latestId, !!settings]);
+
+  return <ThemeProvider preference={settings?.scheme ?? 'night'}>{children}</ThemeProvider>;
+}
 
 function RootStack() {
   const { colors, scheme, reduceMotion } = useTheme();
@@ -73,7 +97,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <Suspense fallback={null}>
           <DataProvider>
-            <RootStack />
+            <SettingsBridge>
+              <RootStack />
+            </SettingsBridge>
           </DataProvider>
         </Suspense>
       </ThemeProvider>

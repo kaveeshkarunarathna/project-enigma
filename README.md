@@ -59,3 +59,4 @@ npm test           # unit tests (from phase 2)
 - [Design system](docs/DESIGN-SYSTEM.md): colours, type, motion, rules
 - [Feature notes](docs/features/): one page per shipped phase
 - [Roadmap](docs/ROADMAP.md): what is built and what comes next
+- [Privacy policy draft](docs/PRIVACY.md): what stays on the phone and what does not

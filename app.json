@@ -33,7 +33,7 @@
         {
           "backgroundColor": "#0C1322",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 140
         }
       ],
       "expo-sqlite",
@@ -44,6 +44,13 @@
           "photosPermission": "Night Atlas reads the text of a page you choose, on your phone, so you can quote a few lines in your journal. The photo is not kept.",
           "cameraPermission": "Night Atlas reads the text of a page you photograph, on your phone, so you can quote a few lines in your journal. The photo is not kept.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#86CDBE"
         }
       ]
     ],

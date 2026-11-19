@@ -4,7 +4,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
 import { IconButton } from '@/components/IconButton';
-import { BookBookmarkIcon } from '@/components/icons';
+import { BookBookmarkIcon, GearIcon } from '@/components/icons';
 import { Pressable } from '@/components/Pressable';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
@@ -39,7 +39,10 @@ export default function TonightScreen() {
       title="Tonight"
       caption="A few quiet pages are enough."
       accessory={
-        <IconButton icon={BookBookmarkIcon} label="Your shelf" onPress={() => router.push('/shelf')} />
+        <View style={styles.accessory}>
+          <IconButton icon={BookBookmarkIcon} label="Your shelf" onPress={() => router.push('/shelf')} />
+          <IconButton icon={GearIcon} label="Settings" tone="mist" onPress={() => router.push('/settings')} />
+        </View>
       }>
       {!loading ? (
         <Ignite>{book ? <Hero book={book} size={starSize} /> : <DarkSky size={starSize} />}</Ignite>
@@ -140,6 +143,7 @@ function DarkSky({ size }: { size: number }) {
 }
 
 const styles = StyleSheet.create({
+  accessory: { flexDirection: 'row' },
   hero: { alignItems: 'center', gap: space.lg },
   heroText: { alignItems: 'center', gap: space.xs, paddingHorizontal: space.lg },
   centerText: { textAlign: 'center' },

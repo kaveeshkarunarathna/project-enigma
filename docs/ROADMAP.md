@@ -13,7 +13,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 7 | Daily reflection prompts and the thinking journal | Done |
 | 8 | Curated paths, custom paths, constellations | Done |
 | 9 | Page scanner for journal quotes (on-device only) | Done |
-| 10 | Gentle reminders, settings, polish | Planned |
+| 10 | Gentle reminders, settings, app icon, privacy notes | Done |
 
 ## Later
 
