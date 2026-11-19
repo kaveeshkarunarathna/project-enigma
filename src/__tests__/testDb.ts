@@ -17,7 +17,10 @@ export async function createTestDb(): Promise<Db> {
       return { lastInsertRowId: Number(r.lastInsertRowid), changes: Number(r.changes) };
     },
     async getAllAsync<T>(sql: string, params: SqlValue[]) {
-      return raw.prepare(sql).all(...params).map((row: object) => ({ ...row })) as T[];
+      return raw
+        .prepare(sql)
+        .all(...params)
+        .map((row: object) => ({ ...row })) as T[];
     },
     async getFirstAsync<T>(sql: string, params: SqlValue[]) {
       const row = raw.prepare(sql).get(...params);

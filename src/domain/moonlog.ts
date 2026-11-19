@@ -79,7 +79,9 @@ export function weekMessage(summary: WeekSummary): string {
   const { fullMoons, target } = summary;
   if (fullMoons === 0) return `Any ${target} nights this week. Start whenever you like.`;
   if (fullMoons >= target) {
-    return fullMoons === 7 ? 'Seven full moons. A whole week of reading.' : `${fullMoons} full moons. Your week is complete.`;
+    return fullMoons === 7
+      ? 'Seven full moons. A whole week of reading.'
+      : `${fullMoons} full moons. Your week is complete.`;
   }
   const left = target - fullMoons;
   return `${fullMoons} of ${target} full moons. ${left} more ${left === 1 ? 'night' : 'nights'} this week.`;

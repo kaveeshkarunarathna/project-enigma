@@ -150,7 +150,8 @@ export async function updateEntry(
   }
   if (patch.quoteText !== undefined) {
     const check = checkQuote(patch.quoteText);
-    if (check.status === 'empty' || check.status === 'too-long') throw new Error('Quotes are kept to a short passage');
+    if (check.status === 'empty' || check.status === 'too-long')
+      throw new Error('Quotes are kept to a short passage');
     sets.push('quote_text = ?');
     params.push(check.text);
   }

@@ -27,8 +27,7 @@ export function ThemeProvider({
   const reduceMotion = useReducedMotion();
 
   const value = useMemo<Theme>(() => {
-    const scheme =
-      preference === 'system' ? (system === 'light' ? 'dawn' : 'night') : preference;
+    const scheme = preference === 'system' ? (system === 'light' ? 'dawn' : 'night') : preference;
     return { colors: scheme === 'dawn' ? dawn : night, scheme, reduceMotion };
   }, [preference, system, reduceMotion]);
 

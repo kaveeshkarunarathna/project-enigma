@@ -38,7 +38,11 @@ export async function getSettings(db: Db): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...stored };
 }
 
-export async function setSetting<K extends keyof Settings>(db: Db, key: K, value: Settings[K]): Promise<void> {
+export async function setSetting<K extends keyof Settings>(
+  db: Db,
+  key: K,
+  value: Settings[K],
+): Promise<void> {
   await db.runAsync(
     'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
     [key, JSON.stringify(value)],

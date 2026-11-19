@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
+import { IconButton } from './IconButton';
+import { CaretLeftIcon } from './icons';
 import { StarField } from './StarField';
 import { Text } from './Text';
 import { useTheme } from '@/theme/theme';
@@ -20,10 +23,25 @@ type Props = {
   accessory?: ReactNode;
   /** Set false for pushed screens that have no tab bar. */
   tabBar?: boolean;
+  /** Shows a back button above the title. Implies no tab bar. */
+  back?: boolean;
 };
 
+export function goBack() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/');
+}
+
 /** Standard screen: night background, sparse stars, Gloock title, 20pt gutters. */
-export function Screen({ title, caption, children, scroll = true, accessory, tabBar = true }: Props) {
+export function Screen({
+  title,
+  caption,
+  children,
+  scroll = true,
+  accessory,
+  back = false,
+  tabBar = !back,
+}: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const padding = {
@@ -32,18 +50,25 @@ export function Screen({ title, caption, children, scroll = true, accessory, tab
   };
 
   const header = (
-    <View style={styles.header}>
-      <View style={styles.flex}>
-        <Text variant="title" accessibilityRole="header">
-          {title}
-        </Text>
-        {caption ? (
-          <Text variant="caption" style={styles.caption}>
-            {caption}
+    <View style={styles.headerBlock}>
+      {back ? (
+        <View style={styles.back}>
+          <IconButton icon={CaretLeftIcon} label="Back" onPress={goBack} />
+        </View>
+      ) : null}
+      <View style={styles.header}>
+        <View style={styles.flex}>
+          <Text variant="title" accessibilityRole="header">
+            {title}
           </Text>
-        ) : null}
+          {caption ? (
+            <Text variant="caption" style={styles.caption}>
+              {caption}
+            </Text>
+          ) : null}
+        </View>
+        {accessory}
       </View>
-      {accessory}
     </View>
   );
 
@@ -71,6 +96,8 @@ export function Screen({ title, caption, children, scroll = true, accessory, tab
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: space.gutter, gap: space.xl },
+  headerBlock: { gap: space.sm },
+  back: { marginLeft: -space.md, marginTop: -space.md },
   header: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
   caption: { marginTop: space.xs },
 });

@@ -81,10 +81,16 @@ export async function logSession(db: Db, input: NewSession): Promise<SessionResu
 
   await db.withTransactionAsync(async () => {
     const settings = await getSettings(db);
-    const existingNight = await db.getFirstAsync<{ night: string }>('SELECT night FROM nights WHERE night = ?', [night]);
+    const existingNight = await db.getFirstAsync<{ night: string }>(
+      'SELECT night FROM nights WHERE night = ?',
+      [night],
+    );
     if (!existingNight) {
       firstOfNight = true;
-      await db.runAsync('INSERT INTO nights (night, goal_minutes) VALUES (?, ?)', [night, settings.goalMinutes]);
+      await db.runAsync('INSERT INTO nights (night, goal_minutes) VALUES (?, ?)', [
+        night,
+        settings.goalMinutes,
+      ]);
     }
 
     const book = input.bookId ? await getBook(db, input.bookId) : null;
@@ -99,7 +105,12 @@ export async function logSession(db: Db, input: NewSession): Promise<SessionResu
         book.chapterCount ?? Number.MAX_SAFE_INTEGER,
       );
       const before = litBeads({ ...book, finished: false });
-      const after = litBeads({ ...book, currentPage: Math.max(pageTo, book.currentPage), chaptersDone, finished: false });
+      const after = litBeads({
+        ...book,
+        currentPage: Math.max(pageTo, book.currentPage),
+        chaptersDone,
+        finished: false,
+      });
       beadsLit = Math.max(0, after - before);
       stardust = sessionStardust(seconds, beadsLit);
 
@@ -167,7 +178,12 @@ export async function deleteSession(db: Db, id: string): Promise<void> {
 
 /** Moon Log records for nights in `[from, to]` (inclusive `YYYY-MM-DD`). */
 export async function nightRecords(db: Db, from: string, to: string): Promise<NightRecord[]> {
-  const rows = await db.getAllAsync<{ night: string; goal_minutes: number; seconds: number; reflected: number }>(
+  const rows = await db.getAllAsync<{
+    night: string;
+    goal_minutes: number;
+    seconds: number;
+    reflected: number;
+  }>(
     `SELECT n.night, n.goal_minutes,
        COALESCE((SELECT SUM(seconds) FROM sessions s WHERE s.night = n.night), 0) AS seconds,
        EXISTS (SELECT 1 FROM journal_entries j WHERE j.night = n.night AND j.kind = 'reflection') AS reflected

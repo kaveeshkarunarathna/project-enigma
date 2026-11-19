@@ -36,7 +36,11 @@ export type LiveQuery<T> = { data: T | undefined; error: unknown; loading: boole
  * Runs `query` and re-runs it whenever one of `tables` changes or `deps`
  * change. Results from stale runs are dropped.
  */
-export function useLiveQuery<T>(query: () => Promise<T>, tables: Table[], deps: unknown[] = []): LiveQuery<T> {
+export function useLiveQuery<T>(
+  query: () => Promise<T>,
+  tables: Table[],
+  deps: unknown[] = [],
+): LiveQuery<T> {
   const key = tables.join(',');
   const version = useSyncExternalStore(subscribe, () => snapshot(tables));
   const [state, setState] = useState<{ data: T | undefined; error: unknown; loading: boolean }>({

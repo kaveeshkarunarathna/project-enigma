@@ -107,13 +107,30 @@ export async function syncCuratedPaths(db: Db, seeds: CuratedPathSeed[]): Promis
         await db.runAsync(
           `UPDATE paths SET title = ?, subtitle = ?, description = ?, genre = ?, curated_version = ?, updated_at = ?
            WHERE id = ?`,
-          [seed.title, seed.subtitle ?? null, seed.description ?? null, seed.genre ?? null, seed.version, now, seed.id],
+          [
+            seed.title,
+            seed.subtitle ?? null,
+            seed.description ?? null,
+            seed.genre ?? null,
+            seed.version,
+            now,
+            seed.id,
+          ],
         );
       } else {
         await db.runAsync(
           `INSERT INTO paths (id, source, title, subtitle, description, genre, curated_version, created_at, updated_at)
            VALUES (?, 'curated', ?, ?, ?, ?, ?, ?, ?)`,
-          [seed.id, seed.title, seed.subtitle ?? null, seed.description ?? null, seed.genre ?? null, seed.version, now, now],
+          [
+            seed.id,
+            seed.title,
+            seed.subtitle ?? null,
+            seed.description ?? null,
+            seed.genre ?? null,
+            seed.version,
+            now,
+            now,
+          ],
         );
       }
       await writeBooks(db, seed.id, seed.books);
@@ -136,7 +153,10 @@ async function writeBooks(db: Db, pathId: string, books: CuratedPathSeed['books'
   }
 }
 
-export async function listPaths(db: Db, source?: PathSource): Promise<(ReadingPath & { bookCount: number })[]> {
+export async function listPaths(
+  db: Db,
+  source?: PathSource,
+): Promise<(ReadingPath & { bookCount: number })[]> {
   const rows = await db.getAllAsync<PathRow & { book_count: number }>(
     `SELECT p.*, (SELECT COUNT(*) FROM path_books pb WHERE pb.path_id = p.id) AS book_count
      FROM paths p ${source ? 'WHERE p.source = ?' : ''}
@@ -211,7 +231,11 @@ export async function updateUserPath(
 }
 
 /** Replaces the ordered book list of a reader-made path. */
-export async function setUserPathBooks(db: Db, id: string, books: Omit<PathBook, 'position'>[]): Promise<void> {
+export async function setUserPathBooks(
+  db: Db,
+  id: string,
+  books: Omit<PathBook, 'position'>[],
+): Promise<void> {
   await assertUserPath(db, id);
   await db.withTransactionAsync(async () => {
     await writeBooks(

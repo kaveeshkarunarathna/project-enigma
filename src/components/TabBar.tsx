@@ -1,5 +1,5 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import { BookOpenIcon, FeatherIcon, PathIcon, PlanetIcon, type Icon } from 'phosphor-react-native';
+import { BookOpenIcon, FeatherIcon, PathIcon, PlanetIcon, type Icon } from './icons';
 import { StyleSheet, View } from 'react-native';
 
 import { Pressable } from './Pressable';
@@ -43,7 +43,11 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
                 if (!active) navigateToTab(route.key);
               }}
               style={styles.tab}>
-              <Icon size={24} weight={active ? 'regular' : 'light'} color={active ? colors.starlight : colors.mist} />
+              <Icon
+                size={24}
+                weight={active ? 'regular' : 'light'}
+                color={active ? colors.starlight : colors.mist}
+              />
               <Text variant="caption" tone={active ? 'starlight' : 'mist'} style={styles.label}>
                 {tab.label}
               </Text>

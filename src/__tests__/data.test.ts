@@ -21,7 +21,11 @@ const at = (h: number, m = 0, day = 19) => new Date(2026, 10, day, h, m);
 describe('books', () => {
   it('adds a book once per Open Library work', async () => {
     const db = await createTestDb();
-    const a = await addBook(db, { olWorkKey: '/works/OL1W', title: 'Meditations', author: 'Marcus Aurelius' });
+    const a = await addBook(db, {
+      olWorkKey: '/works/OL1W',
+      title: 'Meditations',
+      author: 'Marcus Aurelius',
+    });
     const b = await addBook(db, { olWorkKey: '/works/OL1W', title: 'Meditations' });
     expect(b.id).toBe(a.id);
     expect(await listBooks(db)).toHaveLength(1);
@@ -64,14 +68,31 @@ describe('sessions and the moon log', () => {
   it('never moves the page backwards', async () => {
     const db = await createTestDb();
     const book = await addBook(db, { title: 'Dune', pageCount: 600 });
-    await logSession(db, { bookId: book.id, startedAt: at(20), endedAt: at(20, 10), seconds: 600, pageTo: 80 });
-    await logSession(db, { bookId: book.id, startedAt: at(22), endedAt: at(22, 5), seconds: 300, pageTo: 10 });
+    await logSession(db, {
+      bookId: book.id,
+      startedAt: at(20),
+      endedAt: at(20, 10),
+      seconds: 600,
+      pageTo: 80,
+    });
+    await logSession(db, {
+      bookId: book.id,
+      startedAt: at(22),
+      endedAt: at(22, 5),
+      seconds: 300,
+      pageTo: 10,
+    });
     expect((await getBook(db, book.id))?.currentPage).toBe(80);
   });
 
   it('counts a 1 AM session towards the evening before', async () => {
     const db = await createTestDb();
-    const r = await logSession(db, { bookId: null, startedAt: at(1, 0, 20), endedAt: at(1, 10, 20), seconds: 600 });
+    const r = await logSession(db, {
+      bookId: null,
+      startedAt: at(1, 0, 20),
+      endedAt: at(1, 10, 20),
+      seconds: 600,
+    });
     expect(r.session.night).toBe('2026-11-19');
   });
 
@@ -150,9 +171,27 @@ describe('paths', () => {
     const db = await createTestDb();
     await syncCuratedPaths(db, [seed]);
     const mine = await createUserPath(db, { title: 'Winter fantasy' });
-    await addBookToUserPath(db, mine.id, { olWorkKey: '/works/X', title: 'A Wizard of Earthsea', author: 'Ursula K. Le Guin', coverUrl: null, note: null });
-    await addBookToUserPath(db, mine.id, { olWorkKey: '/works/Y', title: 'The Hobbit', author: 'J. R. R. Tolkien', coverUrl: null, note: null });
-    await addBookToUserPath(db, mine.id, { olWorkKey: '/works/X', title: 'duplicate', author: null, coverUrl: null, note: null });
+    await addBookToUserPath(db, mine.id, {
+      olWorkKey: '/works/X',
+      title: 'A Wizard of Earthsea',
+      author: 'Ursula K. Le Guin',
+      coverUrl: null,
+      note: null,
+    });
+    await addBookToUserPath(db, mine.id, {
+      olWorkKey: '/works/Y',
+      title: 'The Hobbit',
+      author: 'J. R. R. Tolkien',
+      coverUrl: null,
+      note: null,
+    });
+    await addBookToUserPath(db, mine.id, {
+      olWorkKey: '/works/X',
+      title: 'duplicate',
+      author: null,
+      coverUrl: null,
+      note: null,
+    });
     await moveBookInUserPath(db, mine.id, 1, 0);
     const path = await getPath(db, mine.id);
     expect(path?.books.map((b) => b.title)).toEqual(['The Hobbit', 'A Wizard of Earthsea']);

@@ -23,9 +23,14 @@ src/
   app/             Routes only. Every file is a screen; _layout files are navigators.
     _layout.tsx    Loads fonts, provides the theme, root stack.
     (tabs)/        Tonight, Paths, Journal, Sky.
+    shelf.tsx      Your shelf.
+    search.tsx     Find a book (Open Library).
+    book/          Book page and add-by-hand form.
   components/      Shared UI: Text, Button, Pressable, Screen, StarField, TabBar.
   data/            SQLite schema, migrations and repositories (books, sessions,
                    journal, paths, settings), plus useLiveQuery.
+  features/        Feature helpers shared by several screens (formatting, hooks).
+  services/        Network calls. Only the Open Library catalog, for book facts and covers.
   domain/          Pure rules: nights, Moon Log, progress, quotes. No React, no SQL.
   theme/           Design tokens and the theme provider.
   __tests__/       Unit tests (Jest). Data tests run on in-memory SQLite.

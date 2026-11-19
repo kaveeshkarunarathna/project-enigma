@@ -18,7 +18,7 @@ import { ThemeProvider, useTheme } from '@/theme/theme';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootStack() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, reduceMotion } = useTheme();
   return (
     <>
       <StatusBar style={scheme === 'night' ? 'light' : 'dark'} />
@@ -26,9 +26,9 @@ function RootStack() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.night },
-          animation: 'fade',
+          animation: reduceMotion ? 'none' : 'slide_from_right',
         }}>
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(tabs)" options={{ animation: reduceMotion ? 'none' : 'fade' }} />
       </Stack>
     </>
   );

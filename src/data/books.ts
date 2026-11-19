@@ -148,7 +148,10 @@ export async function currentBook(db: Db): Promise<Book | null> {
 }
 
 export type BookPatch = Partial<
-  Pick<Book, 'title' | 'author' | 'pageCount' | 'chapterCount' | 'format' | 'currentPage' | 'chaptersDone' | 'coverUrl'>
+  Pick<
+    Book,
+    'title' | 'author' | 'pageCount' | 'chapterCount' | 'format' | 'currentPage' | 'chaptersDone' | 'coverUrl'
+  >
 >;
 
 const PATCH_COLUMNS: Record<keyof BookPatch, string> = {
