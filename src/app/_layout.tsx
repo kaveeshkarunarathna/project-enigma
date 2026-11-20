@@ -1,0 +1,108 @@
+import { Gloock_400Regular } from '@expo-google-fonts/gloock';
+import {
+  Literata_400Regular,
+  Literata_400Regular_Italic,
+  Literata_500Medium,
+  Literata_600SemiBold,
+  useFonts,
+} from '@expo-google-fonts/literata';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { Suspense, useEffect, type ReactNode } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+import { CURATED_PATHS } from '@/content/paths';
+import { DataProvider, onDatabaseReady, useDb } from '@/data/DataProvider';
+import { useLiveQuery } from '@/data/live';
+import { syncCuratedPaths } from '@/data/paths';
+import { listSessions } from '@/data/sessions';
+import { getSettings } from '@/data/settings';
+import { syncReminders } from '@/features/reminders/reminders';
+import { useSkiaReady } from '@/features/platform/useSkiaReady';
+import { ThemeProvider, useTheme } from '@/theme/theme';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Install or refresh the curated reading paths bundled with this version.
+onDatabaseReady(async (db) => {
+  await syncCuratedPaths(db, CURATED_PATHS);
+});
+
+/**
+ * Applies settings that reach the whole app: the chosen sky (theme), and the
+ * evening reminders, planned again when the app opens, the reminder time
+ * changes, or a reading session is logged.
+ */
+function SettingsBridge({ children }: { children: ReactNode }) {
+  const db = useDb();
+  const { data: settings } = useLiveQuery(() => getSettings(db), ['settings']);
+  const { data: latest } = useLiveQuery(() => listSessions(db, { limit: 1 }), ['sessions']);
+  const reminderTime = settings?.reminderTime;
+  const latestId = latest?.[0]?.id;
+
+  useEffect(() => {
+    if (settings) syncReminders(db);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, reminderTime, latestId, !!settings]);
+
+  return <ThemeProvider preference={settings?.scheme ?? 'night'}>{children}</ThemeProvider>;
+}
+
+function RootStack() {
+  const { colors, scheme, reduceMotion } = useTheme();
+  return (
+    <>
+      <StatusBar style={scheme === 'night' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.night },
+          animation: reduceMotion ? 'none' : 'slide_from_right',
+        }}>
+        <Stack.Screen name="(tabs)" options={{ animation: reduceMotion ? 'none' : 'fade' }} />
+        <Stack.Screen
+          name="ignite"
+          options={{ presentation: 'fullScreenModal', animation: reduceMotion ? 'none' : 'fade' }}
+        />
+        <Stack.Screen
+          name="lamp"
+          options={{ presentation: 'fullScreenModal', animation: reduceMotion ? 'none' : 'fade' }}
+        />
+      </Stack>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Gloock_400Regular,
+    Literata_400Regular,
+    Literata_400Regular_Italic,
+    Literata_500Medium,
+    Literata_600SemiBold,
+  });
+
+  const skiaReady = useSkiaReady();
+  const ready = (fontsLoaded || fontError) && skiaReady;
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) return null;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <Suspense fallback={null}>
+          <DataProvider>
+            <SettingsBridge>
+              <RootStack />
+            </SettingsBridge>
+          </DataProvider>
+        </Suspense>
+      </ThemeProvider>
+    </GestureHandlerRootView>
+  );
+}
