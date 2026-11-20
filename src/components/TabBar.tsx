@@ -1,5 +1,5 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import { BookOpenIcon, FeatherIcon, PathIcon, PlanetIcon, type Icon } from './icons';
+import { BooksIcon, FeatherIcon, PathIcon, StarIcon, type Icon } from './icons';
 import { StyleSheet, View } from 'react-native';
 
 import { Pressable } from './Pressable';
@@ -8,10 +8,10 @@ import { useTheme } from '@/theme/theme';
 import { radius, space } from '@/theme/tokens';
 
 const TABS: Record<string, { label: string; icon: Icon }> = {
-  index: { label: 'Tonight', icon: BookOpenIcon },
+  index: { label: 'Sky', icon: StarIcon },
+  shelf: { label: 'Shelf', icon: BooksIcon },
   paths: { label: 'Paths', icon: PathIcon },
   journal: { label: 'Journal', icon: FeatherIcon },
-  sky: { label: 'Sky', icon: PlanetIcon },
 };
 
 /**

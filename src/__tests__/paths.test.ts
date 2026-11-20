@@ -2,10 +2,13 @@
 import { CURATED_PATHS } from '@/content/paths';
 import {
   constellationPoints,
+  lineFill,
   matchShelfBook,
   normalizeTitle,
   pathProgress,
   readerGenre,
+  starFill,
+  tonightsPath,
 } from '@/domain/paths';
 
 const shelf = [
@@ -41,7 +44,75 @@ describe('path matching', () => {
       ],
       shelf,
     );
-    expect(p).toEqual({ states: ['finished', 'reading', 'none'], finished: 1, total: 3, complete: false });
+    expect(p).toMatchObject({
+      states: ['finished', 'reading', 'none'],
+      finished: 1,
+      total: 3,
+      complete: false,
+    });
+    // The book being read has no page count here, so it adds nothing yet.
+    expect(p.fills).toEqual([1, 0, 0]);
+    expect(p.fraction).toBeCloseTo(1 / 3);
+  });
+});
+
+describe('filling page by page', () => {
+  const book = (status: string, currentPage: number, pageCount: number | null) => ({
+    id: 'b',
+    olWorkKey: null,
+    title: 'Dune',
+    author: null,
+    status,
+    currentPage,
+    pageCount,
+  });
+
+  it('fills a star with the pages read, whole only when finished', () => {
+    expect(starFill(null)).toBe(0);
+    expect(starFill(book('reading', 100, 400))).toBe(0.25);
+    expect(starFill(book('reading', 400, 400))).toBe(0.99);
+    expect(starFill(book('reading', 100, null))).toBe(0);
+    expect(starFill(book('want', 0, 400))).toBe(0);
+    expect(starFill(book('finished', 10, 400))).toBe(1);
+  });
+
+  it('counts pages toward the whole constellation', () => {
+    const p = pathProgress(
+      [
+        { olWorkKey: null, title: 'The Hobbit', author: null },
+        { olWorkKey: null, title: 'Dune', author: null },
+      ],
+      [{ ...shelf[0] }, book('reading', 200, 400)],
+    );
+    expect(p.fills).toEqual([1, 0.5]);
+    expect(p.fraction).toBe(0.75);
+  });
+
+  it('draws a line in from a whole star as the next book is read', () => {
+    expect(lineFill([1, 0.5, 0], 0)).toBe(0.5);
+    expect(lineFill([1, 0.5, 0], 1)).toBe(0);
+    expect(lineFill([1, 1], 0)).toBe(1);
+    expect(lineFill([0.9, 1], 0)).toBe(0);
+    expect(lineFill([1], 0)).toBe(0);
+  });
+});
+
+describe("tonight's constellation", () => {
+  const entry = (title: string) => ({ olWorkKey: null, title, author: null });
+  const paths = [
+    { id: 'old', joinedAt: '2026-01-01', source: 'curated', books: [entry('Meditations')] },
+    { id: 'new', joinedAt: '2026-06-01', source: 'curated', books: [entry('The Hobbit')] },
+    { id: 'idle', joinedAt: null, source: 'curated', books: [entry('Dune')] },
+  ];
+
+  it('prefers the followed path holding the book in hand', () => {
+    expect(tonightsPath(paths, shelf, shelf[1])?.id).toBe('old');
+  });
+
+  it('else the newest followed path still to finish', () => {
+    // "new" holds only the finished Hobbit, so it is complete.
+    expect(tonightsPath(paths, shelf, null)?.id).toBe('old');
+    expect(tonightsPath(paths.slice(1), shelf, null)).toBeNull();
   });
 });
 

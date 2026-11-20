@@ -14,10 +14,11 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 8 | Curated paths, custom paths, constellations | Done |
 | 9 | Page scanner for journal quotes (on-device only) | Done |
 | 10 | Gentle reminders, settings, app icon, privacy notes | Done |
+| 11 | Reader for public-domain classics (open PR, on hold) | Paused |
+| 12 | Paper books: barcode, pages, page-by-page constellations, the sky first | Done |
 
 ## Later
 
-- Reader for public-domain classics
 - Optional cloud backup (Supabase or Firebase free tier)
 - Supporter in-app purchase, lifetime option and tip jar
 - Home screen widget with tonight's moon

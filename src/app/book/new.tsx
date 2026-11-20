@@ -18,7 +18,7 @@ function toCount(text: string): number | null {
 /** Add a book by hand, for books the catalog does not have. */
 export default function NewBookScreen() {
   const db = useDb();
-  const params = useLocalSearchParams<{ title?: string }>();
+  const params = useLocalSearchParams<{ title?: string; isbn?: string }>();
   const [title, setTitle] = useState(params.title ?? '');
   const [author, setAuthor] = useState('');
   const [pages, setPages] = useState('');
@@ -34,6 +34,7 @@ export default function NewBookScreen() {
     setBusy(true);
     try {
       const book = await addBook(db, {
+        isbn: params.isbn || null,
         title,
         author,
         pageCount: toCount(pages),

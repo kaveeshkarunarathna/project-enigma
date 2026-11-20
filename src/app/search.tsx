@@ -4,9 +4,10 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
-import { CheckIcon } from '@/components/icons';
+import { CheckIcon, BarcodeIcon } from '@/components/icons';
 import { Hairline } from '@/components/Hairline';
 import { Pressable } from '@/components/Pressable';
+import { IconButton } from '@/components/IconButton';
 import { goBack, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
@@ -94,7 +95,12 @@ export default function SearchScreen() {
     <Screen
       back
       title={pathId ? 'Add to your path' : 'Find a book'}
-      caption="Titles, authors and covers come from the Open Library catalog.">
+      caption="Titles, authors and covers come from the Open Library catalog."
+      accessory={
+        !pathId ? (
+          <IconButton icon={BarcodeIcon} label="Scan the barcode" onPress={() => router.push('/barcode')} />
+        ) : undefined
+      }>
       <TextField
         value={query}
         onChangeText={(t) => {

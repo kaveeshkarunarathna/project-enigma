@@ -108,7 +108,13 @@ function PathCard({
       {path.books.length ? (
         <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={styles.mini}>
           {width ? (
-            <Constellation pathId={path.id} states={progress.states} width={width} height={64} />
+            <Constellation
+              pathId={path.id}
+              states={progress.states}
+              fills={progress.fills}
+              width={width}
+              height={64}
+            />
           ) : null}
         </View>
       ) : null}

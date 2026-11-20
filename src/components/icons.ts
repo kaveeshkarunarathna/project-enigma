@@ -4,9 +4,11 @@
 export {
   ArrowDownIcon,
   ArrowUpIcon,
+  BarcodeIcon,
   BellIcon,
   BookBookmarkIcon,
   BookOpenIcon,
+  BooksIcon,
   CameraIcon,
   CaretLeftIcon,
   CaretRightIcon,
@@ -15,6 +17,7 @@ export {
   FeatherIcon,
   GearIcon,
   MagnifyingGlassIcon,
+  MinusIcon,
   PathIcon,
   PauseIcon,
   PencilSimpleIcon,
@@ -23,6 +26,7 @@ export {
   PlusIcon,
   QuotesIcon,
   ScanIcon,
+  StarIcon,
   TrashIcon,
   XIcon,
 } from 'phosphor-react-native';

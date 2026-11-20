@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
-import { PlusIcon } from '@/components/icons';
+import { BarcodeIcon, PlusIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { listBooks, type Book } from '@/data/books';
@@ -26,15 +26,24 @@ export default function ShelfScreen() {
 
   return (
     <Screen
-      back
       title="Your shelf"
       caption="Every book you are reading, want to read, or have finished."
-      accessory={<IconButton icon={PlusIcon} label="Find a book" onPress={() => router.push('/search')} />}>
+      accessory={
+        <View style={styles.accessory}>
+          <IconButton icon={BarcodeIcon} label="Scan a barcode" onPress={() => router.push('/barcode')} />
+          <IconButton icon={PlusIcon} label="Find a book" onPress={() => router.push('/search')} />
+        </View>
+      }>
       {!loading && !groups.length ? (
         <EmptyState
           heading="An empty shelf, for now"
-          body="Search the Open Library catalog, or add a book by hand."
-          action={<Button label="Find a book" onPress={() => router.push('/search')} />}
+          body="Scan the barcode on the back of a book you are reading, or search the catalog."
+          action={
+            <View style={styles.actions}>
+              <Button label="Scan a barcode" onPress={() => router.push('/barcode')} />
+              <Button kind="quiet" label="Search" onPress={() => router.push('/search')} />
+            </View>
+          }
         />
       ) : null}
       {groups.map((g) => (
@@ -57,3 +66,8 @@ export default function ShelfScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  accessory: { flexDirection: 'row' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
+});
