@@ -2,14 +2,12 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
 import { IconButton } from '@/components/IconButton';
 import { GearIcon } from '@/components/icons';
 import { Pressable } from '@/components/Pressable';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
-import { Stat } from '@/components/Stat';
 import { BookStar } from '@/components/sky/BookStar';
 import { Constellation } from '@/components/sky/Constellation';
 import { Ignite } from '@/components/sky/Ignite';
@@ -31,6 +29,7 @@ import { addDays } from '@/domain/time';
 import { bookCaption } from '@/features/books/format';
 import { useThisWeek } from '@/features/moonlog/useMoonLog';
 import { useTonightsPath } from '@/features/paths/useTonightsPath';
+import { useTheme } from '@/theme/theme';
 import { space } from '@/theme/tokens';
 
 /**
@@ -51,22 +50,26 @@ export default function SkyScreen() {
   const { data: lastBackup } = useLiveQuery(() => lastBackupAt(db), ['settings']);
   const path = useTonightsPath(shelf, book);
   const pace = readingPace(recent ?? [], today);
-  const others = (shelf ?? []).filter((b) => b.status === 'reading' && b.id !== book?.id);
   const count = nights?.length ?? 0;
+  const { colors } = useTheme();
+  // A small warm dot on the gear, instead of a line of text, when a backup is due.
+  const backupNudge =
+    !!stats && lastBackup !== undefined && backupDue(stats.nightsRead, daysSinceBackup(lastBackup));
 
   return (
     <Screen
       title="Your sky"
       moon="sky"
-      caption={
-        count
-          ? `${count} ${count === 1 ? 'star' : 'stars'}, one for every night you read.${
-              nights?.some((n) => n.wrote) ? ' Teal rings are nights you wrote about.' : ''
-            } Tap one to see its night.`
-          : 'Every night you read adds a star. Nothing here ever goes dark.'
-      }
       accessory={
-        <IconButton icon={GearIcon} label="Settings" tone="mist" onPress={() => router.push('/settings')} />
+        <View>
+          <IconButton
+            icon={GearIcon}
+            label={backupNudge ? 'Settings. Time to back up your sky' : 'Settings'}
+            tone="mist"
+            onPress={() => router.push('/settings')}
+          />
+          {backupNudge ? <View pointerEvents="none" style={[styles.dot, { backgroundColor: colors.candlelight }]} /> : null}
+        </View>
       }>
       <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={styles.sky}>
         {width && nights ? (
@@ -111,55 +114,9 @@ export default function SkyScreen() {
           style={styles.week}>
           <WeekStrip week={week} today={today} />
           <Text variant="caption">{weekMessage(week)}</Text>
-          {pace.minutesThisWeek || pace.pagesThisWeek ? (
-            <View style={styles.stats}>
-              <Stat value={pace.minutesThisWeek} label="minutes" />
-              <Stat value={pace.pagesThisWeek} label={pace.pagesThisWeek === 1 ? 'page' : 'pages'} />
-              {pace.pagesPerWeek ? <Stat value={pace.pagesPerWeek} label="pages a week, lately" /> : null}
-            </View>
-          ) : null}
         </Pressable>
       </Section>
 
-      {others.length ? (
-        <Section title="Also reading">
-          {others.map((b) => (
-            <BookRow
-              key={b.id}
-              title={b.title}
-              author={b.author}
-              coverUrl={b.coverUrl}
-              caption={bookCaption(b)}
-              onPress={() => router.push({ pathname: '/book/[id]', params: { id: b.id } })}
-            />
-          ))}
-        </Section>
-      ) : null}
-
-      {stats && count ? (
-        <Section title="All your nights">
-          <View style={[styles.stats, styles.allTime]}>
-            <Stat value={stats.nightsRead} label={stats.nightsRead === 1 ? 'night' : 'nights'} />
-            <Stat value={stats.minutesRead} label="minutes" />
-            <Stat value={stats.booksFinished} label={stats.booksFinished === 1 ? 'book' : 'books'} />
-            <Stat value={stats.stardust} label="stardust" />
-          </View>
-        </Section>
-      ) : null}
-      {stats && lastBackup !== undefined && backupDue(stats.nightsRead, daysSinceBackup(lastBackup)) ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityHint="Opens Settings, where you can save a backup"
-          haptic={false}
-          onPress={() => router.push('/settings')}
-          style={styles.backup}>
-          <Text variant="caption">
-            {lastBackup
-              ? 'It has been a while since your last backup. Keep a copy of your sky'
-              : 'Your sky lives only on this phone. Keep a copy of it'}
-          </Text>
-        </Pressable>
-      ) : null}
     </Screen>
   );
 }
@@ -194,8 +151,11 @@ function InHand({ book, pace }: { book: Book; pace: Pace }) {
           <Text variant="heading" numberOfLines={2}>
             {book.title}
           </Text>
-          <Text tone="mist">{bookCaption(book)}</Text>
-          {toGo ? <Text variant="caption">{toGo}</Text> : null}
+          <Text variant="caption">
+            {[bookCaption(book), toGo ? lowerFirst(toGo.replace(' at your pace', '')) : null]
+              .filter(Boolean)
+              .join(', ')}
+          </Text>
         </View>
       </Pressable>
       <View style={styles.actions}>
@@ -219,16 +179,12 @@ function InHand({ book, pace }: { book: Book; pace: Pace }) {
           />
         </View>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityHint="Opens the page scanner"
-        haptic={false}
-        onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book.id } })}
-        style={styles.quoteLink}>
-        <Text tone="mist">A line worth keeping? Scan it from the page</Text>
-      </Pressable>
     </View>
   );
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 function NoBook() {
@@ -238,7 +194,7 @@ function NoBook() {
         <BookStar size={104} brightness={0} beads={12} lit={0} accessibilityLabel="An unlit star" />
         <View style={styles.inHandText}>
           <Text variant="heading">Which book is in your hands?</Text>
-          <Text tone="mist">Scan its barcode and its star joins your sky.</Text>
+          <Text variant="caption">Scan its barcode and its star joins your sky.</Text>
         </View>
       </View>
       <View style={styles.actions}>
@@ -314,7 +270,5 @@ const styles = StyleSheet.create({
   pathSky: { height: 96 },
   week: { gap: space.md, paddingTop: space.lg },
   stats: { flexDirection: 'row', gap: space.xl },
-  allTime: { justifyContent: 'space-between', paddingTop: space.md },
-  backup: { paddingVertical: space.md },
-  quoteLink: { alignSelf: 'center', paddingVertical: space.xs },
+  dot: { position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: 3 },
 });

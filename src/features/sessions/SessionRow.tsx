@@ -31,7 +31,7 @@ export function SessionRow({ session, title }: { session: Session; title: string
       onPress={() => router.push({ pathname: '/session/[id]', params: { id: session.id } })}
       style={styles.row}>
       <View style={styles.text}>
-        <Text variant="heading" numberOfLines={1}>
+        <Text numberOfLines={1}>
           {title}
         </Text>
         <Text tone="mist">{summary}</Text>

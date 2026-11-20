@@ -92,9 +92,11 @@ export function PageStepper({ value, onChange, from, total, label = 'Stopped on 
           />
         ))}
       </View>
-      <Text variant="caption" tone={read ? 'aurora' : undefined} accessibilityLiveRegion="polite">
-        {read ? `${read} ${read === 1 ? 'page' : 'pages'} this session` : `You were on page ${from || 0}`}
-      </Text>
+      {read ? (
+        <Text variant="caption" tone="aurora" accessibilityLiveRegion="polite">
+          {`${read} ${read === 1 ? 'page' : 'pages'} this session`}
+        </Text>
+      ) : null}
     </View>
   );
 }

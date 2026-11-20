@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
@@ -16,7 +16,7 @@ import { addDays, nightKey, parseNightKey } from '@/domain/time';
 import { BookPicker } from '@/features/journal/BookPicker';
 import { space } from '@/theme/tokens';
 
-const MINUTES = [5, 10, 15, 20, 30, 45, 60] as const;
+const MINUTES = [5, 10, 15, 20, 30, 45, 60, 90] as const;
 
 /**
  * Log a reading session that happened without the Lamp: how long, and which
@@ -80,10 +80,7 @@ export default function LogScreen() {
   }
 
   return (
-    <Screen
-      back
-      title="Log reading"
-      caption="For reading without the lamp. It fills the same moon and stars.">
+    <Screen back title="Log reading">
       <View style={styles.field}>
         <Text variant="label">Book</Text>
         <BookPicker value={bookId} onChange={setBookId} />
@@ -99,7 +96,11 @@ export default function LogScreen() {
 
       <View style={styles.field}>
         <Text variant="label">About how long</Text>
-        <View style={styles.chips} accessibilityRole="radiogroup">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.row}
+          accessibilityRole="radiogroup">
           {MINUTES.map((m) => (
             <Chip
               key={m}
@@ -109,20 +110,22 @@ export default function LogScreen() {
               onPress={() => setMinutes(m)}
             />
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       {book ? <PageStepper value={page} onChange={setPage} from={from} total={book.pageCount} /> : null}
 
-      <Text variant="caption">
-        {minutes
-          ? `${minutes} minutes${pages ? ` and ${pages} ${pages === 1 ? 'page' : 'pages'}` : ''} for ${
-              when === 'tonight' ? 'tonight' : 'last night'
-            }.`
-          : 'Choose about how long you read.'}
-      </Text>
       <View style={styles.action}>
-        <Button label="Save to the sky" onPress={save} disabled={!canSave} />
+        <Button
+          label="Save to the sky"
+          onPress={save}
+          disabled={!canSave}
+          accessibilityHint={
+            minutes
+              ? `Saves ${minutes} minutes${pages ? ` and ${pages} ${pages === 1 ? 'page' : 'pages'}` : ''}`
+              : 'Choose about how long you read first'
+          }
+        />
       </View>
     </Screen>
   );
@@ -138,5 +141,6 @@ function evening(night: string): Date {
 const styles = StyleSheet.create({
   field: { gap: space.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  row: { flexDirection: 'row', gap: space.sm, paddingRight: space.gutter },
   action: { alignSelf: 'flex-start' },
 });

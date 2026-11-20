@@ -51,3 +51,26 @@ the app size.
   (Regular, Italic). Gloock was removed.
 
 See `docs/DESIGN-SYSTEM.md` for the full token and type tables.
+
+## Calmer screens
+
+After seeing the first build, Kaveesh found the screens too crowded with
+text. Each screen now follows one rule: no explanation line under a tab
+screen's title, one short detail line per item, about three groups, and one
+main button.
+
+- **Sky:** the sky, the book in your hands with one line (chapter and time
+  left), Light the lamp and Log pages, your constellation and this week's
+  moons. The scan link lives in Journal, other books on Shelf, all-time
+  numbers in the Moon Log. When a backup is due, a small warm dot sits on
+  the settings gear instead of a sentence.
+- **Book:** cover, chapter, three numbers (read, nights, minutes), Light the
+  lamp and Log pages, the last three nights, the last three journal entries.
+  Page and chapter boxes sit behind "Edit pages and chapters"; shelf actions
+  behind "More options".
+- **Log reading:** no caption or helper lines; times are one scrolling row;
+  the pages line only appears once pages were read.
+- **Journal:** tonight's question, then your entries. Search and filters sit
+  behind a search icon; scanning is the header icon. Each entry shows the
+  words first, then one small line with the date, book and page.
+- **Shelf and Paths:** no caption under the title.

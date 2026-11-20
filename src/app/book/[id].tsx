@@ -10,6 +10,7 @@ import { goBack, Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { PageTrail } from '@/components/sky/PageTrail';
 import { Hairline } from '@/components/Hairline';
+import { Stat } from '@/components/Stat';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { deleteBook, getBook, setBookStatus, updateBook, type Book } from '@/data/books';
@@ -21,7 +22,7 @@ import { listEntries } from '@/data/journal';
 import { listSessions, type Session } from '@/data/sessions';
 import { bookCaption, formatYear } from '@/features/books/format';
 import { nightTitle, pageSeries } from '@/domain/nights';
-import { bookCompletion, litBeads, ringSize } from '@/domain/progress';
+import { bookCompletion } from '@/domain/progress';
 import { EntryItem } from '@/features/journal/EntryItem';
 import { SessionRow } from '@/features/sessions/SessionRow';
 import { space } from '@/theme/tokens';
@@ -36,6 +37,8 @@ export default function BookScreen() {
   const db = useDb();
   const { data: book, loading } = useLiveQuery(() => getBook(db, id), ['books'], [id]);
   const { data: sessions } = useLiveQuery(() => listSessions(db, { bookId: id }), ['sessions'], [id]);
+  const [editing, setEditing] = useState(false);
+  const [more, setMore] = useState(false);
 
   if (!book) {
     return (
@@ -48,6 +51,7 @@ export default function BookScreen() {
   }
 
   const minutes = Math.floor((sessions ?? []).reduce((s, x) => s + x.seconds, 0) / 60);
+  const nights = new Set((sessions ?? []).map((x) => x.night)).size;
   const progress = { ...book, finished: book.status === 'finished' };
 
   return (
@@ -58,41 +62,42 @@ export default function BookScreen() {
         .filter(Boolean)
         .join(', ')}>
       <View style={styles.hero}>
-        <BookCover uri={book.coverUrl} title={book.title} width={120} />
+        <BookCover uri={book.coverUrl} title={book.title} width={96} />
         <View style={styles.heroText}>
-          <Text variant="caption">{bookCaption(book) ?? ''}</Text>
-          <Text>
-            {litBeads(progress)} of {ringSize(book)} ring lights
-          </Text>
-          <Text tone="mist">{Math.round(bookCompletion(progress) * 100)}% read</Text>
-          <Text tone="mist">
-            {book.stardust} stardust, {minutes} {minutes === 1 ? 'minute' : 'minutes'}
-          </Text>
+          {bookCaption(book) ? <Text variant="label">{bookCaption(book)}</Text> : null}
+          <View style={styles.stats}>
+            <Stat value={Math.round(bookCompletion(progress) * 100)} label="% read" />
+            <Stat value={nights} label={nights === 1 ? 'night' : 'nights'} />
+            <Stat value={minutes} label="min" />
+          </View>
         </View>
       </View>
 
       <PrimaryAction book={book} />
 
-      {book.format !== 'classic' ? (
-        // Classics read in the app track their chapters on their own.
-        <ProgressEditor
-          key={`${book.currentPage}:${book.pageCount}:${book.chaptersDone}:${book.chapterCount}`}
-          book={book}
-        />
-      ) : null}
+      {sessions?.length ? <History book={book} sessions={sessions} /> : null}
 
       <BookJournal book={book} />
 
-      {sessions?.length ? <History book={book} sessions={sessions} /> : null}
-
-      <Section title="Shelf">
+      <Section title="This book">
         <View style={styles.links}>
-          {book.status !== 'finished' ? (
+          {book.format !== 'classic' ? (
+            // Classics read in the app track their chapters on their own.
             <TextLink
-              label="Log reading without the lamp"
-              onPress={() => router.push({ pathname: '/log', params: { bookId: book.id } })}
+              label={editing ? 'Close progress' : 'Edit pages and chapters'}
+              onPress={() => setEditing((e) => !e)}
             />
           ) : null}
+          {editing && book.format !== 'classic' ? (
+            <ProgressEditor
+              key={`${book.currentPage}:${book.pageCount}:${book.chaptersDone}:${book.chapterCount}`}
+              book={book}
+            />
+          ) : null}
+          <TextLink label={more ? 'Fewer options' : 'More options'} onPress={() => setMore((m) => !m)} />
+        </View>
+        {more ? (
+        <View style={styles.links}>
           {book.status !== 'want' && book.status !== 'finished' ? (
             <TextLink
               label="Mark as finished"
@@ -132,12 +137,13 @@ export default function BookScreen() {
             }
           />
         </View>
+        ) : null}
       </Section>
     </Screen>
   );
 }
 
-const JOURNAL_ROWS = 5;
+const JOURNAL_ROWS = 3;
 
 /** What the reader kept from this book: quotes first-class, plus one-tap ways to add more. */
 function BookJournal({ book }: { book: Book }) {
@@ -145,18 +151,13 @@ function BookJournal({ book }: { book: Book }) {
   const [all, setAll] = useState(false);
   const { data: entries } = useLiveQuery(() => listEntries(db, { bookId: book.id }), ['journal'], [book.id]);
   const list = entries ?? [];
-  const quotes = list.filter((e) => e.kind === 'quote').length;
   const shown = all ? list : list.slice(0, JOURNAL_ROWS);
   return (
     <Section
-      title={
-        list.length
-          ? `Your journal, ${quotes ? `${quotes} ${quotes === 1 ? 'quote' : 'quotes'}` : `${list.length} ${list.length === 1 ? 'entry' : 'entries'}`}`
-          : 'Your journal'
-      }>
+      title="Your journal">
       <View style={styles.journalLinks}>
         <TextLink
-          label="Scan a quote from the page"
+          label="Scan a quote"
           tone="aurora"
           onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book.id } })}
         />
@@ -180,7 +181,7 @@ function BookJournal({ book }: { book: Book }) {
   );
 }
 
-const HISTORY_ROWS = 8;
+const HISTORY_ROWS = 3;
 
 /** Every session with this book: its pages over time, then the sittings, newest first. */
 function History({ book, sessions }: { book: Book; sessions: Session[] }) {
@@ -191,7 +192,7 @@ function History({ book, sessions }: { book: Book; sessions: Session[] }) {
   const first = series[0];
   const last = series[series.length - 1];
   return (
-    <Section title={`Reading history, ${sessions.length} ${sessions.length === 1 ? 'sitting' : 'sittings'}`}>
+    <Section title="Recent nights">
       {series.length >= 2 ? (
         <View style={styles.trail} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {width ? (
@@ -247,12 +248,22 @@ function PrimaryAction({ book }: { book: Book }) {
   }
   if (book.status === 'finished') return null;
   return (
-    <View style={styles.primary}>
-      <Button
-        label="Read now"
-        accessibilityHint="Opens the reading lamp for this book"
-        onPress={() => router.push({ pathname: '/lamp', params: { bookId: book.id } })}
-      />
+    <View style={styles.actions}>
+      <View style={styles.action}>
+        <Button
+          label="Light the lamp"
+          accessibilityHint="Opens the reading lamp for this book"
+          onPress={() => router.push({ pathname: '/lamp', params: { bookId: book.id } })}
+        />
+      </View>
+      <View style={styles.action}>
+        <Button
+          kind="quiet"
+          label="Log pages"
+          accessibilityHint="For reading you have already done"
+          onPress={() => router.push({ pathname: '/log', params: { bookId: book.id } })}
+        />
+      </View>
     </View>
   );
 }
@@ -345,8 +356,11 @@ const styles = StyleSheet.create({
   trail: { gap: space.xs, paddingTop: space.md },
   journalLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg },
   trailEnds: { flexDirection: 'row', justifyContent: 'space-between' },
-  hero: { flexDirection: 'row', gap: space.xl, alignItems: 'flex-end' },
-  heroText: { flex: 1, gap: space.xs },
+  hero: { flexDirection: 'row', gap: space.xl, alignItems: 'center' },
+  heroText: { flex: 1, gap: space.md },
+  stats: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
+  actions: { flexDirection: 'row', gap: space.md },
+  action: { flex: 1 },
   primary: { alignSelf: 'stretch' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, paddingTop: space.md },
   cell: { width: '47%', flexGrow: 1 },
