@@ -74,3 +74,32 @@ main button.
   behind a search icon; scanning is the header icon. Each entry shows the
   words first, then one small line with the date, book and page.
 - **Shelf and Paths:** no caption under the title.
+
+## Immersive sky
+
+The Sky tab is no longer a page you scroll. The sky fills the whole screen,
+edge to edge, and only "Your sky" and the settings gear sit on top of it.
+
+- **Depth:** the sky is built from layers at different distances. Far away:
+  a faint Milky Way band and fine dust. In the middle: your reading stars,
+  then a pale far cloud bank and a deeper mid bank. Close by: dark corner
+  clouds and a soft vignette. When you tilt the phone, near layers shift more
+  than far ones, a few points at most (parallax).
+- **Time of night:** the sky colour follows the clock. A little purple at
+  dusk, deepest around midnight, a hint of dawn near morning
+  (`src/domain/skyMood.ts`, tested).
+- **Explore:** drag to wander, pinch to zoom in (up to 2.6x), double-tap to
+  return. Tap a star to ring it and float a small card beside it with the
+  night, the minutes, what you wrote, and Open night.
+- **Book on the clouds:** the book in your hands rests on the cloud bank with
+  its star, title, chapter and a round lamp button. With no book, a barcode
+  button adds one.
+- **Tonight sheet:** swipe the book up (or tap it) and a sheet rises from the
+  clouds with the book, this week's moons and your path. The sky dims behind
+  it. Swipe down or tap the sky to close.
+- **Calm:** motion only follows your touch or tilt. With Reduce Motion there
+  is no tilt and sheets simply appear.
+
+Files: `src/app/(tabs)/index.tsx`, `src/components/sky/Atmosphere.tsx`,
+`src/components/sky/DepthClouds.tsx`, `src/features/sky/useTilt.ts`
+(expo-sensors DeviceMotion), `src/domain/skyMood.ts`, `src/domain/random.ts`.

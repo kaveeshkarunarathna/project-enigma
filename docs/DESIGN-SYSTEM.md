@@ -59,6 +59,13 @@ image files.
   rests on; content scrolling down sinks into it.
 - `EmptyState` shows a small moon by a cloud above a centred heading.
 
+### Depth layers (Sky tab)
+
+Parallax depth in points per unit of tilt, far to near: Milky Way band 3,
+dust and near stars 6, moon 8, far cloud bank 12, mid bank 18, corner
+clouds 26 to 30. Reading stars sit between the dust and the far bank.
+Disabled under Reduce Motion.
+
 ## Layout
 
 - Side margins are 20pt (`space.gutter`).
