@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
-import { PlusIcon } from '@/components/icons';
+import { BooksIcon, PlusIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { listBooks, type Book } from '@/data/books';
@@ -29,12 +29,22 @@ export default function ShelfScreen() {
       back
       title="Your shelf"
       caption="Every book you are reading, want to read, or have finished."
-      accessory={<IconButton icon={PlusIcon} label="Find a book" onPress={() => router.push('/search')} />}>
+      accessory={
+        <View style={styles.accessory}>
+          <IconButton icon={BooksIcon} label="Free classics" onPress={() => router.push('/classics')} />
+          <IconButton icon={PlusIcon} label="Find a book" onPress={() => router.push('/search')} />
+        </View>
+      }>
       {!loading && !groups.length ? (
         <EmptyState
           heading="An empty shelf, for now"
-          body="Search the Open Library catalog, or add a book by hand."
-          action={<Button label="Find a book" onPress={() => router.push('/search')} />}
+          body="Search the Open Library catalog, add a book by hand, or start a free classic."
+          action={
+            <View style={styles.actions}>
+              <Button label="Find a book" onPress={() => router.push('/search')} />
+              <Button kind="quiet" label="Free classics" onPress={() => router.push('/classics')} />
+            </View>
+          }
         />
       ) : null}
       {groups.map((g) => (
@@ -57,3 +67,8 @@ export default function ShelfScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  accessory: { flexDirection: 'row' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
+});

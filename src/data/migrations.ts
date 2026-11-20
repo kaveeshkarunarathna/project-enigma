@@ -5,7 +5,8 @@ import type { Db } from './db';
  * have run. Never edit a shipped migration: add a new one.
  *
  * Rule: no table ever stores copyrighted book text. `journal_entries.quote_text`
- * holds only a short passage the reader chose for their private journal.
+ * holds only a short passage the reader chose for their private journal, and
+ * `classic_chapters` holds only public-domain texts from the classics catalog.
  */
 export const MIGRATIONS: string[] = [
   // 1: initial schema
@@ -96,6 +97,31 @@ export const MIGRATIONS: string[] = [
   CREATE TABLE settings (
     key TEXT PRIMARY KEY NOT NULL,
     value TEXT NOT NULL
+  );
+  `,
+  // 2: public-domain classics, downloaded on the phone for the reader
+  `
+  -- Public-domain texts only (see src/content/classics.ts). This is the one
+  -- place book text is stored, and only for books that are out of copyright.
+  CREATE TABLE classic_texts (
+    classic_id TEXT PRIMARY KEY NOT NULL,
+    book_id TEXT REFERENCES books(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    chapter_count INTEGER NOT NULL,
+    word_count INTEGER NOT NULL,
+    downloaded_at TEXT NOT NULL,
+    position_chapter INTEGER NOT NULL DEFAULT 0,
+    position_fraction REAL NOT NULL DEFAULT 0,
+    chapters_read INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE classic_chapters (
+    classic_id TEXT NOT NULL REFERENCES classic_texts(classic_id) ON DELETE CASCADE,
+    idx INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    words INTEGER NOT NULL,
+    PRIMARY KEY (classic_id, idx)
   );
   `,
 ];

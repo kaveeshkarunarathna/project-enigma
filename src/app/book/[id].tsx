@@ -11,7 +11,9 @@ import { Section } from '@/components/Section';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { deleteBook, getBook, setBookStatus, updateBook, type Book } from '@/data/books';
+import { getClassicTextForBook } from '@/data/classics';
 import { useDb } from '@/data/DataProvider';
+import { findClassic } from '@/content/classics';
 import { useLiveQuery } from '@/data/live';
 import { listSessions } from '@/data/sessions';
 import { bookCaption, formatYear } from '@/features/books/format';
@@ -65,10 +67,13 @@ export default function BookScreen() {
 
       <PrimaryAction book={book} />
 
-      <ProgressEditor
-        key={`${book.currentPage}:${book.pageCount}:${book.chaptersDone}:${book.chapterCount}`}
-        book={book}
-      />
+      {book.format !== 'classic' ? (
+        // Classics read in the app track their chapters on their own.
+        <ProgressEditor
+          key={`${book.currentPage}:${book.pageCount}:${book.chaptersDone}:${book.chapterCount}`}
+          book={book}
+        />
+      ) : null}
 
       <Section title="Shelf">
         <View style={styles.links}>
@@ -117,6 +122,28 @@ export default function BookScreen() {
 }
 
 function PrimaryAction({ book }: { book: Book }) {
+  const db = useDb();
+  const { data: text } = useLiveQuery(() => getClassicTextForBook(db, book.id), ['classics'], [book.id]);
+  const classic = book.format === 'classic' ? findClassic(book.title, book.author) : null;
+  const classicId = text?.classicId ?? classic?.id;
+  if (classicId) {
+    // A public-domain classic is read here, in the app, where time counts on its own.
+    return (
+      <View style={styles.primary}>
+        <Button
+          label={
+            book.status === 'finished'
+              ? 'Open the book'
+              : text?.chaptersRead
+                ? 'Keep reading'
+                : 'Start reading'
+          }
+          accessibilityHint="Opens the book in the reader"
+          onPress={() => router.push({ pathname: '/classics/[id]', params: { id: classicId } })}
+        />
+      </View>
+    );
+  }
   if (book.status === 'finished') return null;
   return (
     <View style={styles.primary}>

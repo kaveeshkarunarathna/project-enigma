@@ -12,6 +12,7 @@ import { BookStar } from '@/components/sky/BookStar';
 import { Ignite } from '@/components/sky/Ignite';
 import { WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
+import { findClassic } from '@/content/classics';
 import { currentBook, listBooks, type Book } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
@@ -84,6 +85,7 @@ function Hero({ book, size }: { book: Book; size: number }) {
   const progress = { ...book, finished: book.status === 'finished' };
   const lit = litBeads(progress);
   const beads = ringSize(book);
+  const classic = book.format === 'classic' ? findClassic(book.title, book.author) : null;
   return (
     <View style={styles.hero}>
       <Pressable
@@ -115,8 +117,12 @@ function Hero({ book, size }: { book: Book; size: number }) {
       <View style={styles.cta}>
         <Button
           label="Read now"
-          accessibilityHint="Opens the reading lamp"
-          onPress={() => router.push({ pathname: '/lamp', params: { bookId: book.id } })}
+          accessibilityHint={classic ? 'Opens the book in the reader' : 'Opens the reading lamp'}
+          onPress={() =>
+            classic
+              ? router.push({ pathname: '/classics/[id]', params: { id: classic.id } })
+              : router.push({ pathname: '/lamp', params: { bookId: book.id } })
+          }
         />
       </View>
     </View>
