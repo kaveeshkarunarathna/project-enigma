@@ -17,10 +17,11 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 11 | Free public-domain classics, read in the app | Done |
 | 12 | Paper books: barcode, pages, page-by-page constellations, the sky first | Done |
 | 13 | Tap a star to open its night, fix sessions, each book's reading history | Done |
+| 14 | Backup to a file you keep, and restore on a new phone | Done |
 
 ## Later
 
-- Optional cloud backup (Supabase or Firebase free tier)
+- Optional automatic cloud backup (the file backup in phase 14 covers phone changes for now)
 - Supporter in-app purchase, lifetime option and tip jar
 - Home screen widget with tonight's moon
 - iOS App Store release

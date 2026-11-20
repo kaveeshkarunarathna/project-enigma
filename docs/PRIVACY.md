@@ -39,6 +39,13 @@ The barcode scanner uses the camera only to read the barcode on the back of a
 book. No picture is taken or kept. The book's ISBN is then sent to Open
 Library to find its edition, the same way a title search is.
 
+## Backups
+
+A backup is a file the app makes on your phone and hands to your phone's
+share sheet. You choose where it goes. The app does not upload it, and it
+holds your books, reading nights, paths, journal and settings, so keep it
+somewhere you trust. Restoring reads a file you pick and stays on the phone.
+
 ## Notifications
 
 If you turn on the evening reminder, the app schedules notifications on your

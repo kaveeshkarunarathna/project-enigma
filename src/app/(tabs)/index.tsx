@@ -17,9 +17,11 @@ import { WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
 import { findClassic } from '@/content/classics';
 import { currentBook, listBooks, type Book } from '@/data/books';
+import { lastBackupAt } from '@/data/backup';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
 import { paceSessions, readingNights, skyStats } from '@/data/sessions';
+import { backupDue, daysSinceBackup } from '@/domain/backup';
 import { weekMessage } from '@/domain/moonlog';
 import { finishLine, readingPace, type Pace } from '@/domain/pace';
 import { pathProgress } from '@/domain/paths';
@@ -45,6 +47,7 @@ export default function SkyScreen() {
   const { data: shelf } = useLiveQuery(() => listBooks(db), ['books']);
   const { data: stats } = useLiveQuery(() => skyStats(db), ['sessions', 'books']);
   const { data: recent } = useLiveQuery(() => paceSessions(db, addDays(today, -27)), ['sessions'], [today]);
+  const { data: lastBackup } = useLiveQuery(() => lastBackupAt(db), ['settings']);
   const path = useTonightsPath(shelf, book);
   const pace = readingPace(recent ?? [], today);
   const others = (shelf ?? []).filter((b) => b.status === 'reading' && b.id !== book?.id);
@@ -138,6 +141,20 @@ export default function SkyScreen() {
             <Stat value={stats.stardust} label="stardust" />
           </View>
         </Section>
+      ) : null}
+      {stats && lastBackup !== undefined && backupDue(stats.nightsRead, daysSinceBackup(lastBackup)) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityHint="Opens Settings, where you can save a backup"
+          haptic={false}
+          onPress={() => router.push('/settings')}
+          style={styles.backup}>
+          <Text variant="caption">
+            {lastBackup
+              ? 'It has been a while since your last backup. Keep a copy of your sky'
+              : 'Your sky lives only on this phone. Keep a copy of it'}
+          </Text>
+        </Pressable>
       ) : null}
     </Screen>
   );
@@ -296,4 +313,5 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', gap: space.xl },
   allTime: { justifyContent: 'space-between', paddingTop: space.md },
   stat: { gap: 2, flexShrink: 1 },
+  backup: { paddingVertical: space.md },
 });
