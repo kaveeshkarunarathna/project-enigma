@@ -11,10 +11,11 @@ import { moonLabel, WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
-import { nightRecords, skyStats } from '@/data/sessions';
+import { nightRecords, paceSessions, skyStats } from '@/data/sessions';
 import { setSetting } from '@/data/settings';
 import { GOAL_CHOICES, moonFor, weekMessage, type MoonState } from '@/domain/moonlog';
-import { localDateKey, monthGrid, monthName, parseNightKey } from '@/domain/time';
+import { readingPace } from '@/domain/pace';
+import { addDays, localDateKey, monthGrid, monthName, parseNightKey } from '@/domain/time';
 import { useThisWeek } from '@/features/moonlog/useMoonLog';
 import { space } from '@/theme/tokens';
 
@@ -40,6 +41,8 @@ export default function MoonLogScreen() {
     [cursor.year, cursor.month],
   );
   const { data: stats } = useLiveQuery(() => skyStats(db), ['sessions', 'books']);
+  const { data: recent } = useLiveQuery(() => paceSessions(db, addDays(today, -27)), ['sessions'], [today]);
+  const pace = recent ? readingPace(recent, today) : null;
   const byNight = new Map((records ?? []).map((r) => [r.night, r]));
   const monthFull = (records ?? []).filter((r) => r.seconds >= r.goalMinutes * 60).length;
   const isCurrentMonth =
@@ -96,6 +99,24 @@ export default function MoonLogScreen() {
             : `${monthFull} full ${monthFull === 1 ? 'moon' : 'moons'} this month.`}
         </Text>
       </Section>
+
+      {pace ? (
+        <Section title="Your pace">
+          <View style={styles.stats}>
+            <Stat
+              value={pace.pagesThisWeek}
+              label={pace.pagesThisWeek === 1 ? 'page this week' : 'pages this week'}
+            />
+            <Stat value={pace.pagesPerWeek} label="pages a week, lately" />
+            {pace.pagesPerHour ? <Stat value={pace.pagesPerHour} label="pages an hour" /> : null}
+          </View>
+          <Text variant="caption">
+            {pace.pagesPerWeek || pace.pagesThisWeek
+              ? 'From the pages you log, over the last four weeks. Any pace is a good pace.'
+              : 'Tell the lamp, or Log pages, where you stopped and your pages add up here.'}
+          </Text>
+        </Section>
+      ) : null}
 
       <Section title="Nightly goal">
         <View style={styles.chips} accessibilityRole="radiogroup">

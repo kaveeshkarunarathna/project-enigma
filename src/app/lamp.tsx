@@ -19,13 +19,14 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { IconButton } from '@/components/IconButton';
 import { XIcon } from '@/components/icons';
+import { PageStepper } from '@/components/PageStepper';
 import { Pressable } from '@/components/Pressable';
 import { goBack } from '@/components/Screen';
 import { BookStar } from '@/components/sky/BookStar';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { PROMPT_AUTHOR } from '@/content/prompts';
-import { getBook, setBookStatus } from '@/data/books';
+import { getBook, setBookStatus, type Book } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { addEntry } from '@/data/journal';
 import { useLiveQuery } from '@/data/live';
@@ -283,8 +284,7 @@ export default function LampScreen() {
           {state.phase === 'complete' && saved ? (
             <AfterSession
               result={saved}
-              hasBook={!!book}
-              hasChapters={!!book?.chapterCount}
+              book={book ?? null}
               onKeepReading={() => {
                 setSaved(null);
                 dispatch({ type: 'keepReading', now: Date.now() });
@@ -309,17 +309,19 @@ function useKeepAwakeWhile(active: boolean) {
 
 function AfterSession({
   result,
-  hasBook,
-  hasChapters,
+  book,
   onKeepReading,
 }: {
   result: SessionResult;
-  hasBook: boolean;
-  hasChapters: boolean;
+  book: Book | null;
   onKeepReading: () => void;
 }) {
   const db = useDb();
-  const [page, setPage] = useState('');
+  const hasBook = !!book;
+  const hasChapters = !!book?.chapterCount;
+  // Pages first: the stepper starts on the page the reader was on before tonight.
+  const fromPage = book?.currentPage ?? 0;
+  const [page, setPage] = useState(fromPage);
   const [chapters, setChapters] = useState(0);
   const [thought, setThought] = useState('');
   const genre = useReaderGenre(result.session.bookId);
@@ -331,7 +333,7 @@ function AfterSession({
   async function done() {
     setBusy(true);
     try {
-      const pageTo = parseInt(page.replace(/\D/g, ''), 10);
+      const pageTo = page > fromPage ? page : 0;
       let markFinished = finished;
       if (hasBook && (pageTo > 0 || chapters > 0)) {
         const p = await recordSessionProgress(db, result.session.id, {
@@ -375,13 +377,7 @@ function AfterSession({
 
       {hasBook ? (
         <View style={styles.fields}>
-          <TextField
-            label="Page you stopped on"
-            hint="Optional"
-            value={page}
-            onChangeText={setPage}
-            keyboardType="number-pad"
-          />
+          <PageStepper value={page} onChange={setPage} from={fromPage} total={book?.pageCount ?? null} />
           {hasChapters ? (
             <View style={styles.stepper}>
               <Text tone="mist" style={styles.flex}>

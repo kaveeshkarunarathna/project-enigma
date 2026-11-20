@@ -77,6 +77,12 @@ export default function BookScreen() {
 
       <Section title="Shelf">
         <View style={styles.links}>
+          {book.status !== 'finished' ? (
+            <TextLink
+              label="Log reading without the lamp"
+              onPress={() => router.push({ pathname: '/log', params: { bookId: book.id } })}
+            />
+          ) : null}
           {book.status !== 'want' && book.status !== 'finished' ? (
             <TextLink
               label="Mark as finished"

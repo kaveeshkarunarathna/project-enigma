@@ -15,6 +15,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 9 | Page scanner for journal quotes (on-device only) | Done |
 | 10 | Gentle reminders, settings, app icon, privacy notes | Done |
 | 11 | Free public-domain classics, read in the app | Done |
+| 12 | Paper books: barcode, pages, page-by-page constellations, the sky first | Done |
 
 ## Later
 

@@ -22,7 +22,7 @@ without a paid developer account.
 src/
   app/             Routes only. Every file is a screen; _layout files are navigators.
     _layout.tsx    Loads fonts, provides the theme, root stack.
-    (tabs)/        Tonight, Paths, Journal, Sky.
+    (tabs)/        Sky (first screen), Shelf, Paths, Journal.
     shelf.tsx      Your shelf.
     search.tsx     Find a book (Open Library).
     book/          Book page and add-by-hand form.

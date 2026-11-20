@@ -52,6 +52,14 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#86CDBE"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Night Atlas uses the camera to read the barcode on a book, so it can find your edition. Nothing is photographed or kept.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {

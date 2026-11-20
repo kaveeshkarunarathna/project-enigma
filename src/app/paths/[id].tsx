@@ -66,10 +66,11 @@ export default function PathScreen() {
             <Constellation
               pathId={path.id}
               states={progress.states}
+              fills={progress.fills}
               width={width}
               height={180}
               focus={following && nextIndex >= 0 ? nextIndex : null}
-              accessibilityLabel={`Constellation of ${progress.total} stars, ${progress.finished} lit`}
+              accessibilityLabel={`Constellation of ${progress.total} stars, ${progress.finished} lit, ${Math.floor(progress.fraction * 100)}% of the way`}
             />
           ) : null}
         </View>
@@ -86,6 +87,9 @@ export default function PathScreen() {
             path.genre ? GENRE_LABEL[path.genre] : null,
             `${progress.total} ${progress.total === 1 ? 'book' : 'books'}`,
             progress.finished ? `${progress.finished} finished` : null,
+            !progress.complete && progress.fraction > 0
+              ? `${Math.max(1, Math.floor(progress.fraction * 100))}% of the constellation lit`
+              : null,
           ]
             .filter(Boolean)
             .join(', ')}

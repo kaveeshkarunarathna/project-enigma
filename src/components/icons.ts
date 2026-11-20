@@ -4,6 +4,7 @@
 export {
   ArrowDownIcon,
   ArrowUpIcon,
+  BarcodeIcon,
   BellIcon,
   BookBookmarkIcon,
   BookOpenIcon,
@@ -18,6 +19,7 @@ export {
   GearIcon,
   ListBulletsIcon,
   MagnifyingGlassIcon,
+  MinusIcon,
   PathIcon,
   PauseIcon,
   PencilSimpleIcon,
@@ -26,6 +28,7 @@ export {
   PlusIcon,
   QuotesIcon,
   ScanIcon,
+  StarIcon,
   TextAaIcon,
   TrashIcon,
   XIcon,

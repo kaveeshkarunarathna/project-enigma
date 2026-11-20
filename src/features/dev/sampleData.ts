@@ -1,6 +1,7 @@
 import { addBook, setBookStatus } from '@/data/books';
 import type { Db } from '@/data/db';
 import { addEntry } from '@/data/journal';
+import { joinPath } from '@/data/paths';
 import { logSession, recordSessionProgress } from '@/data/sessions';
 
 /** Dev tools are on in development builds, or when built with EXPO_PUBLIC_DEV_TOOLS=1. */
@@ -74,5 +75,7 @@ export async function loadSampleSky(db: Db, now = new Date()): Promise<void> {
     quotePage: 64,
     quoteSource: 'typed',
   });
+  // Follow the stoics, so the sky shows a constellation filling with Meditations' pages.
+  await joinPath(db, 'stoics', true).catch(() => {});
   void hobbit;
 }

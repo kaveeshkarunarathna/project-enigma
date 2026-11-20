@@ -124,6 +124,11 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (classic_id, idx)
   );
   `,
+  // 3: the reader's own printed edition, from the barcode on the back cover
+  `
+  ALTER TABLE books ADD COLUMN isbn TEXT;
+  CREATE UNIQUE INDEX books_isbn ON books(isbn) WHERE isbn IS NOT NULL;
+  `,
 ];
 
 export async function migrate(db: Db): Promise<void> {

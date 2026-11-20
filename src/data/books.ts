@@ -7,6 +7,8 @@ export type BookStatus = 'want' | 'reading' | 'finished' | 'paused';
 export type Book = {
   id: string;
   olWorkKey: string | null;
+  /** ISBN-13 of the reader's own edition, when they scanned its barcode. */
+  isbn: string | null;
   title: string;
   author: string | null;
   coverUrl: string | null;
@@ -26,6 +28,7 @@ export type Book = {
 type BookRow = {
   id: string;
   ol_work_key: string | null;
+  isbn: string | null;
   title: string;
   author: string | null;
   cover_url: string | null;
@@ -46,6 +49,7 @@ export function toBook(r: BookRow): Book {
   return {
     id: r.id,
     olWorkKey: r.ol_work_key,
+    isbn: r.isbn ?? null,
     title: r.title,
     author: r.author,
     coverUrl: r.cover_url,
@@ -65,6 +69,7 @@ export function toBook(r: BookRow): Book {
 
 export type NewBook = {
   olWorkKey?: string | null;
+  isbn?: string | null;
   title: string;
   author?: string | null;
   coverUrl?: string | null;
@@ -77,9 +82,21 @@ export type NewBook = {
 
 /** Adds a book to the shelf. A book already on the shelf (same Open Library work) is returned as is. */
 export async function addBook(db: Db, input: NewBook): Promise<Book> {
-  if (input.olWorkKey) {
-    const existing = await getBookByWorkKey(db, input.olWorkKey);
-    if (existing) return existing;
+  const existing =
+    (input.isbn ? await getBookByIsbn(db, input.isbn) : null) ??
+    (input.olWorkKey ? await getBookByWorkKey(db, input.olWorkKey) : null);
+  if (existing) {
+    // Scanning the barcode of a book already on the shelf pins it to that edition.
+    if (input.isbn && !existing.isbn) {
+      await db.runAsync(
+        `UPDATE books SET isbn = ?, page_count = COALESCE(?, page_count), cover_url = COALESCE(cover_url, ?)
+         WHERE id = ?`,
+        [input.isbn, positiveOrNull(input.pageCount), input.coverUrl ?? null, existing.id],
+      );
+      notifyChanged('books');
+      return (await getBook(db, existing.id))!;
+    }
+    return existing;
   }
   const title = input.title.trim();
   if (!title) throw new Error('A book needs a title');
@@ -87,12 +104,13 @@ export async function addBook(db: Db, input: NewBook): Promise<Book> {
   const now = nowIso();
   const status = input.status ?? 'want';
   await db.runAsync(
-    `INSERT INTO books (id, ol_work_key, title, author, cover_url, first_published, page_count,
+    `INSERT INTO books (id, ol_work_key, isbn, title, author, cover_url, first_published, page_count,
        chapter_count, format, status, added_at, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.olWorkKey ?? null,
+      input.isbn ?? null,
       title,
       input.author?.trim() || null,
       input.coverUrl ?? null,
@@ -111,6 +129,11 @@ export async function addBook(db: Db, input: NewBook): Promise<Book> {
 
 export async function getBook(db: Db, id: string): Promise<Book | null> {
   const row = await db.getFirstAsync<BookRow>('SELECT * FROM books WHERE id = ?', [id]);
+  return row ? toBook(row) : null;
+}
+
+export async function getBookByIsbn(db: Db, isbn: string): Promise<Book | null> {
+  const row = await db.getFirstAsync<BookRow>('SELECT * FROM books WHERE isbn = ?', [isbn]);
   return row ? toBook(row) : null;
 }
 

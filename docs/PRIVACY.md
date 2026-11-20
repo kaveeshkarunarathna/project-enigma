@@ -35,6 +35,10 @@ uploaded, not saved to your photo library, and is deleted as soon as the text
 is read. Only the few sentences you choose are kept, as a private quote in
 your journal.
 
+The barcode scanner uses the camera only to read the barcode on the back of a
+book. No picture is taken or kept. The book's ISBN is then sent to Open
+Library to find its edition, the same way a title search is.
+
 ## Notifications
 
 If you turn on the evening reminder, the app schedules notifications on your

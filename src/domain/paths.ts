@@ -8,6 +8,9 @@ type ShelfBook = {
   title: string;
   author: string | null;
   status: string;
+  /** For page-by-page glow. Missing means the book counts only when finished. */
+  currentPage?: number;
+  pageCount?: number | null;
 };
 type PathEntry = { olWorkKey: string | null; title: string; author: string | null };
 
@@ -47,17 +50,52 @@ export function starState(book: ShelfBook | null): PathStarState {
   return 'shelf';
 }
 
-export type PathProgress = { states: PathStarState[]; finished: number; total: number; complete: boolean };
+/**
+ * How far a star has filled, 0..1: a finished book is a whole star, a book
+ * being read fills page by page, anything else has not begun.
+ */
+export function starFill(book: ShelfBook | null): number {
+  if (!book) return 0;
+  if (book.status === 'finished') return 1;
+  if (!book.currentPage || !book.pageCount || book.pageCount <= 0) return 0;
+  // Just short of whole until the reader marks it finished.
+  return Math.min(book.currentPage / book.pageCount, 0.99);
+}
+
+export type PathProgress = {
+  states: PathStarState[];
+  /** 0..1 per star, page by page. */
+  fills: number[];
+  finished: number;
+  total: number;
+  /** 0..1 of the whole constellation, counting pages in books being read. */
+  fraction: number;
+  complete: boolean;
+};
 
 export function pathProgress(entries: PathEntry[], shelf: ShelfBook[]): PathProgress {
-  const states = entries.map((e) => starState(matchShelfBook(e, shelf)));
+  const books = entries.map((e) => matchShelfBook(e, shelf));
+  const states = books.map(starState);
+  const fills = books.map(starFill);
   const finished = states.filter((s) => s === 'finished').length;
   return {
     states,
+    fills,
     finished,
     total: entries.length,
+    fraction: entries.length ? fills.reduce((a, b) => a + b, 0) / entries.length : 0,
     complete: entries.length > 0 && finished === entries.length,
   };
+}
+
+/**
+ * How much of the line from star `i` to star `i + 1` is drawn, 0..1. A line
+ * starts drawing once its first star is whole, and reaches the next star as
+ * that book is read, so the shape traces itself in, page by page.
+ */
+export function lineFill(fills: number[], i: number): number {
+  if ((fills[i] ?? 0) < 1) return 0;
+  return Math.min(Math.max(fills[i + 1] ?? 0, 0), 1);
 }
 
 /**
@@ -105,4 +143,25 @@ export function readerGenre(paths: FollowedPath[], current: ShelfBook | null): R
     if (holding) return holding.genre as ReaderGenre;
   }
   return (followed[0]?.genre as ReaderGenre | undefined) ?? null;
+}
+
+type ShownPath = { joinedAt: string | null; source: string; books: PathEntry[] };
+
+/**
+ * The constellation to show under tonight's sky: a followed path that holds
+ * the book being read, else the most recently followed path still to finish.
+ */
+export function tonightsPath<P extends ShownPath>(
+  paths: P[],
+  shelf: ShelfBook[],
+  current: ShelfBook | null,
+): P | null {
+  const followed = paths
+    .filter((p) => (p.joinedAt || p.source === 'user') && p.books.length)
+    .sort((a, b) => (b.joinedAt ?? '').localeCompare(a.joinedAt ?? ''));
+  if (current) {
+    const holding = followed.find((p) => p.books.some((e) => matchShelfBook(e, [current]) === current));
+    if (holding) return holding;
+  }
+  return followed.find((p) => !pathProgress(p.books, shelf).complete) ?? null;
 }

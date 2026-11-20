@@ -5,7 +5,7 @@ import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
-import { BooksIcon, PlusIcon } from '@/components/icons';
+import { BarcodeIcon, BooksIcon, PlusIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { listBooks, type Book } from '@/data/books';
@@ -26,11 +26,11 @@ export default function ShelfScreen() {
 
   return (
     <Screen
-      back
       title="Your shelf"
       caption="Every book you are reading, want to read, or have finished."
       accessory={
         <View style={styles.accessory}>
+          <IconButton icon={BarcodeIcon} label="Scan a barcode" onPress={() => router.push('/barcode')} />
           <IconButton icon={BooksIcon} label="Free classics" onPress={() => router.push('/classics')} />
           <IconButton icon={PlusIcon} label="Find a book" onPress={() => router.push('/search')} />
         </View>
@@ -38,11 +38,11 @@ export default function ShelfScreen() {
       {!loading && !groups.length ? (
         <EmptyState
           heading="An empty shelf, for now"
-          body="Search the Open Library catalog, add a book by hand, or start a free classic."
+          body="Scan the barcode on the back of a book you are reading, search the catalog, or start a free classic."
           action={
             <View style={styles.actions}>
-              <Button label="Find a book" onPress={() => router.push('/search')} />
-              <Button kind="quiet" label="Free classics" onPress={() => router.push('/classics')} />
+              <Button label="Scan a barcode" onPress={() => router.push('/barcode')} />
+              <Button kind="quiet" label="Search" onPress={() => router.push('/search')} />
             </View>
           }
         />

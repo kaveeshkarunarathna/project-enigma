@@ -3,6 +3,7 @@ import { newId, type Db } from './db';
 import { notifyChanged } from './live';
 import { getSettings } from './settings';
 import type { NightRecord } from '@/domain/moonlog';
+import type { PaceSession } from '@/domain/pace';
 import { litBeads, sessionStardust, STARDUST_PER_BEAD } from '@/domain/progress';
 import { nightKey } from '@/domain/time';
 
@@ -272,5 +273,18 @@ export async function readingNights(db: Db): Promise<{ night: string; seconds: n
   return db.getAllAsync(
     `SELECT night, SUM(seconds) AS seconds FROM sessions GROUP BY night HAVING SUM(seconds) > 0 ORDER BY night`,
     [],
+  );
+}
+
+/**
+ * Sessions from `from` (a night key) on, with the pages each one covered,
+ * for the pace numbers. A session without a stopping page counts no pages.
+ */
+export async function paceSessions(db: Db, from: string): Promise<PaceSession[]> {
+  return db.getAllAsync<PaceSession>(
+    `SELECT night, seconds,
+       CASE WHEN page_to IS NULL THEN 0 ELSE MAX(0, page_to - COALESCE(page_from, 0)) END AS pages
+     FROM sessions WHERE night >= ? ORDER BY night`,
+    [from],
   );
 }
