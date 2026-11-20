@@ -1,6 +1,6 @@
 import { BlurMask, Canvas, Circle, Group, Path, RadialGradient, Skia, vec } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/theme/theme';
 import type { Palette } from '@/theme/tokens';
@@ -148,7 +148,18 @@ export type PlacedMoon = MoonDrawing & { key: string; label: string };
  * than a canvas per moon. Each moon also gets an invisible view carrying its
  * label, so screen readers can step through the nights.
  */
-export function MoonCanvas({ width, height, moons }: { width: number; height: number; moons: PlacedMoon[] }) {
+export function MoonCanvas({
+  width,
+  height,
+  moons,
+  onPressMoon,
+}: {
+  width: number;
+  height: number;
+  moons: PlacedMoon[];
+  /** Makes each moon a button, given its key. */
+  onPressMoon?: (key: string) => void;
+}) {
   const { colors } = useTheme();
   return (
     <View style={{ width, height }}>
@@ -157,21 +168,27 @@ export function MoonCanvas({ width, height, moons }: { width: number; height: nu
           <MoonShape key={key} {...m} colors={colors} />
         ))}
       </Canvas>
-      {moons.map((m) => (
-        <View
-          key={m.key}
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={m.label}
-          style={{
-            position: 'absolute',
-            left: m.cx - m.r,
-            top: m.cy - m.r,
-            width: m.r * 2,
-            height: m.r * 2,
-          }}
-        />
-      ))}
+      {moons.map((m) => {
+        const box = {
+          position: 'absolute' as const,
+          left: m.cx - m.r - 6,
+          top: m.cy - m.r - 6,
+          width: m.r * 2 + 12,
+          height: m.r * 2 + 12,
+        };
+        return onPressMoon ? (
+          <Pressable
+            key={m.key}
+            accessibilityRole="button"
+            accessibilityLabel={m.label}
+            accessibilityHint="Opens the night"
+            onPress={() => onPressMoon(m.key)}
+            style={box}
+          />
+        ) : (
+          <View key={m.key} accessible accessibilityRole="image" accessibilityLabel={m.label} style={box} />
+        );
+      })}
     </View>
   );
 }

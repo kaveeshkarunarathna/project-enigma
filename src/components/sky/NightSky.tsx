@@ -1,5 +1,6 @@
 import { BlurMask, Canvas, Circle, Group } from '@shopify/react-native-skia';
 import { useEffect, useMemo } from 'react';
+import { Pressable } from 'react-native';
 import {
   cancelAnimation,
   Easing,
@@ -9,6 +10,7 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 
+import { nearestStar } from '@/domain/nights';
 import { layoutSky } from '@/domain/sky';
 import { useTheme } from '@/theme/theme';
 
@@ -19,10 +21,15 @@ type Props = {
   goalMinutes: number;
   /** The newest star breathes very slowly. Off under Reduce Motion. */
   breatheNewest?: boolean;
+  /**
+   * Makes the stars tappable: a tap opens the night of the nearest star. For
+   * screen readers the whole sky is one button that opens the newest night.
+   */
+  onPressNight?: (night: string) => void;
 };
 
 /** The reader's own sky: one star for every night they read. */
-export function NightSky({ nights, width, height, goalMinutes, breatheNewest = true }: Props) {
+export function NightSky({ nights, width, height, goalMinutes, breatheNewest = true, onPressNight }: Props) {
   const { colors, reduceMotion } = useTheme();
   const stars = useMemo(
     () => layoutSky(nights, width, height, goalMinutes),
@@ -42,7 +49,7 @@ export function NightSky({ nights, width, height, goalMinutes, breatheNewest = t
   }, [breatheNewest, reduceMotion, pulse]);
   const newestGlow = useDerivedValue(() => pulse.get() * 0.5);
 
-  return (
+  const canvas = (
     <Canvas style={{ width, height }} pointerEvents="none">
       <Group>
         {stars.map((s) => (
@@ -65,5 +72,21 @@ export function NightSky({ nights, width, height, goalMinutes, breatheNewest = t
         ) : null}
       </Group>
     </Canvas>
+  );
+  if (!onPressNight || !stars.length) return canvas;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Your sky, ${stars.length} ${stars.length === 1 ? 'star' : 'stars'}`}
+      accessibilityHint="Opens your latest night. Tap a star to open its night."
+      onPress={(e) => {
+        const { locationX, locationY } = e.nativeEvent;
+        const hit = nearestStar(stars, locationX, locationY);
+        // Empty sky (or a screen reader's tap) opens the newest night.
+        const night = hit?.night ?? newest?.night;
+        if (night) onPressNight(night);
+      }}>
+      {canvas}
+    </Pressable>
   );
 }
