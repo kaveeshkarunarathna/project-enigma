@@ -5,7 +5,7 @@ import { BookRow } from '@/components/BookRow';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
-import { BarcodeIcon, PlusIcon } from '@/components/icons';
+import { BarcodeIcon, BooksIcon, PlusIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { listBooks, type Book } from '@/data/books';
@@ -31,13 +31,14 @@ export default function ShelfScreen() {
       accessory={
         <View style={styles.accessory}>
           <IconButton icon={BarcodeIcon} label="Scan a barcode" onPress={() => router.push('/barcode')} />
+          <IconButton icon={BooksIcon} label="Free classics" onPress={() => router.push('/classics')} />
           <IconButton icon={PlusIcon} label="Find a book" onPress={() => router.push('/search')} />
         </View>
       }>
       {!loading && !groups.length ? (
         <EmptyState
           heading="An empty shelf, for now"
-          body="Scan the barcode on the back of a book you are reading, or search the catalog."
+          body="Scan the barcode on the back of a book you are reading, search the catalog, or start a free classic."
           action={
             <View style={styles.actions}>
               <Button label="Scan a barcode" onPress={() => router.push('/barcode')} />

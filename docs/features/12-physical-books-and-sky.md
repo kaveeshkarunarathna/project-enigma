@@ -34,7 +34,7 @@ the page count in the app matches the book in their hands. There is a typed
 ISBN fallback (checked with `src/domain/isbn.ts`), and when the catalog does
 not know a book, a hand entry form prefilled with the ISBN.
 
-Storage: migration 2 adds `books.isbn` with a unique index. Adding the same
+Storage: migration 3 adds `books.isbn` with a unique index. Adding the same
 book twice (by ISBN or by catalog work) keeps one book and pins it to the
 scanned edition.
 

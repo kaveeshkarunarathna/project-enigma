@@ -14,8 +14,10 @@ export {
   CaretRightIcon,
   CheckIcon,
   DotsThreeIcon,
+  DownloadSimpleIcon,
   FeatherIcon,
   GearIcon,
+  ListBulletsIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   PathIcon,
@@ -27,6 +29,7 @@ export {
   QuotesIcon,
   ScanIcon,
   StarIcon,
+  TextAaIcon,
   TrashIcon,
   XIcon,
 } from 'phosphor-react-native';

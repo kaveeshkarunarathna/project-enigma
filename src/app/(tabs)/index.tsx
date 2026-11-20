@@ -15,6 +15,7 @@ import { Ignite } from '@/components/sky/Ignite';
 import { NightSky } from '@/components/sky/NightSky';
 import { WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
+import { findClassic } from '@/content/classics';
 import { currentBook, listBooks, type Book } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
@@ -143,6 +144,8 @@ function InHand({ book, pace }: { book: Book; pace: Pace }) {
   const beads = ringSize(book);
   const left = book.pageCount ? Math.max(0, book.pageCount - book.currentPage) : null;
   const toGo = book.currentPage ? finishLine(left, pace.pagesPerWeek) : null;
+  // A free classic is read in the app, so its first button opens the reader.
+  const classic = book.format === 'classic' ? findClassic(book.title, book.author) : null;
 
   return (
     <View style={styles.block}>
@@ -171,9 +174,13 @@ function InHand({ book, pace }: { book: Book; pace: Pace }) {
       <View style={styles.actions}>
         <View style={styles.action}>
           <Button
-            label="Light the lamp"
-            accessibilityHint="Times tonight's reading"
-            onPress={() => router.push({ pathname: '/lamp', params: { bookId: book.id } })}
+            label={classic ? 'Read it here' : 'Light the lamp'}
+            accessibilityHint={classic ? 'Opens the book in the reader' : "Times tonight's reading"}
+            onPress={() =>
+              classic
+                ? router.push({ pathname: '/classics/[id]', params: { id: classic.id } })
+                : router.push({ pathname: '/lamp', params: { bookId: book.id } })
+            }
           />
         </View>
         <View style={styles.action}>

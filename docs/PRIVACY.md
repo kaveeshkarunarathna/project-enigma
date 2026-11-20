@@ -20,6 +20,10 @@ journal as text from Settings at any time.
   Archive) to find titles, authors and covers. Covers are loaded from Open
   Library too. Nothing else is sent, and the request carries no personal
   information.
+- **Free classics.** When you download a public-domain classic, the app
+  fetches that one book's text from [Project Gutenberg](https://www.gutenberg.org).
+  The request carries no personal information, and the book is then kept on
+  your phone.
 - That is all. There are no analytics, crash reporting, advertising or other
   third-party services in the app.
 
@@ -49,4 +53,4 @@ children.
 
 If this policy changes, the new version will be published here with its date.
 
-_Last updated: 2026-11-19._
+_Last updated: 2026-11-20._

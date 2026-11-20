@@ -14,6 +14,7 @@ import { Section } from '@/components/Section';
 import { Constellation } from '@/components/sky/Constellation';
 import { Text } from '@/components/Text';
 import { listBooks, type Book } from '@/data/books';
+import { findClassic } from '@/content/classics';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
 import {
@@ -172,6 +173,7 @@ function PathBookRow({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const mine = path.source === 'user';
+  const classic = findClassic(entry.title, entry.author);
 
   async function add(status: 'reading' | 'want') {
     setBusy(true);
@@ -239,7 +241,18 @@ function PathBookRow({
       ) : null}
       {open && !shelfBook ? (
         <View style={styles.choices}>
-          <Button label="Start reading" onPress={() => add('reading')} disabled={busy} />
+          {classic ? (
+            <Button
+              label="Read it here, free"
+              accessibilityHint="A public-domain book you can read in the app"
+              onPress={() => router.push({ pathname: '/classics/[id]', params: { id: classic.id } })}
+            />
+          ) : (
+            <Button label="Start reading" onPress={() => add('reading')} disabled={busy} />
+          )}
+          {classic ? (
+            <Button kind="quiet" label="I have a copy" onPress={() => add('reading')} disabled={busy} />
+          ) : null}
           <Button kind="quiet" label="Want to read" onPress={() => add('want')} disabled={busy} />
         </View>
       ) : null}
