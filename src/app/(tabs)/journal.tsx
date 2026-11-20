@@ -71,8 +71,8 @@ export default function JournalScreen() {
         </View>
       }>
       <View style={styles.prompt}>
-        <Text variant="caption">Tonight’s question</Text>
-        <Text variant="heading" style={styles.promptText}>
+        <Text variant="label">Tonight’s question</Text>
+        <Text variant="prose" style={styles.promptText}>
           {prompt.text}
         </Text>
         <Text variant="caption">{PROMPT_AUTHOR}</Text>

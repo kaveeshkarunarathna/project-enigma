@@ -45,7 +45,7 @@ export function Chip({ label, selected, onPress, accessibilityLabel }: Props) {
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}>
       <Animated.View style={[styles.chip, eased]}>
-        <Text variant="button" tone={selected ? 'starlight' : 'mist'}>
+        <Text variant="chip" tone={selected ? 'starlight' : 'mist'}>
           {label}
         </Text>
       </Animated.View>

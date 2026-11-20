@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
+import { CloudBank } from './art/CloudBank';
 import { Pressable } from './Pressable';
 import { Text } from './Text';
 import { useTheme } from '@/theme/theme';
-import { radius, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 const TABS: Record<string, { label: string; icon: Icon }> = {
   index: { label: 'Sky', icon: StarIcon },
@@ -17,8 +18,9 @@ const TABS: Record<string, { label: string; icon: Icon }> = {
 };
 
 /**
- * A floating capsule tab bar. Minimal: night surface, one hairline edge,
- * Phosphor light icons, starlight for the active tab and mist for the rest.
+ * The tab bar rests on a bank of soft clouds at the foot of the screen.
+ * Phosphor light icons, tracked capital labels, starlight for the active tab
+ * and mist for the rest.
  */
 export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
   const { colors, reduceMotion } = useTheme();
@@ -41,9 +43,8 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
     <View
       pointerEvents="box-none"
       style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
-      <View
-        accessibilityRole="tablist"
-        style={[styles.bar, { backgroundColor: colors.raised, borderColor: colors.hairline }]}>
+      <CloudBank height={112 + insets.bottom} />
+      <View accessibilityRole="tablist" style={styles.bar}>
         <Animated.View
           pointerEvents="none"
           style={[styles.indicator, { backgroundColor: colors.starlight }, indicator]}
@@ -74,7 +75,7 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
                 weight={active ? 'regular' : 'light'}
                 color={active ? colors.starlight : colors.mist}
               />
-              <Text variant="caption" tone={active ? 'starlight' : 'mist'} style={styles.label}>
+              <Text variant="label" tone={active ? 'starlight' : 'mist'} style={styles.label}>
                 {tab.label}
               </Text>
             </Pressable>
@@ -95,8 +96,6 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: 'row',
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth * 2,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
     gap: space.xs,
@@ -108,6 +107,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  label: { fontSize: 11, lineHeight: 14, fontStyle: 'normal' },
+  label: { fontSize: 9, lineHeight: 13, letterSpacing: 2.2 },
   indicator: { position: 'absolute', top: 5, left: 0, width: 4, height: 4, borderRadius: 2 },
 });

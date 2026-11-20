@@ -70,7 +70,7 @@ export default function NewPathScreen() {
         hint="Optional"
       />
       <View style={styles.field}>
-        <Text variant="caption">Kind of books</Text>
+        <Text variant="label">Kind of books</Text>
         <View style={styles.chips} accessibilityRole="radiogroup">
           {GENRES.map((g) => (
             <Chip

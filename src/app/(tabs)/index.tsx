@@ -57,6 +57,7 @@ export default function SkyScreen() {
   return (
     <Screen
       title="Your sky"
+      moon="sky"
       caption={
         count
           ? `${count} ${count === 1 ? 'star' : 'stars'}, one for every night you read.${
@@ -189,7 +190,7 @@ function InHand({ book, pace }: { book: Book; pace: Pace }) {
           lit={lit}
         />
         <View style={styles.inHandText}>
-          <Text variant="caption">In your hands</Text>
+          <Text variant="label">In your hands</Text>
           <Text variant="heading" numberOfLines={2}>
             {book.title}
           </Text>

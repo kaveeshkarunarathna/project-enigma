@@ -85,12 +85,12 @@ export default function LogScreen() {
       title="Log reading"
       caption="For reading without the lamp. It fills the same moon and stars.">
       <View style={styles.field}>
-        <Text variant="caption">Book</Text>
+        <Text variant="label">Book</Text>
         <BookPicker value={bookId} onChange={setBookId} />
       </View>
 
       <View style={styles.field}>
-        <Text variant="caption">When</Text>
+        <Text variant="label">When</Text>
         <View style={styles.chips} accessibilityRole="radiogroup">
           <Chip label="Tonight" selected={when === 'tonight'} onPress={() => setWhen('tonight')} />
           <Chip label="Last night" selected={when === 'last'} onPress={() => setWhen('last')} />
@@ -98,7 +98,7 @@ export default function LogScreen() {
       </View>
 
       <View style={styles.field}>
-        <Text variant="caption">About how long</Text>
+        <Text variant="label">About how long</Text>
         <View style={styles.chips} accessibilityRole="radiogroup">
           {MINUTES.map((m) => (
             <Chip

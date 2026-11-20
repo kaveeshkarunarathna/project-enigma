@@ -7,8 +7,8 @@ import { Text } from './Text';
 export function Stat({ value, label }: { value: number; label: string }) {
   return (
     <View style={styles.stat} accessible accessibilityLabel={`${value} ${label}`}>
-      <CountUp variant="title" value={value} />
-      <Text variant="caption">{label}</Text>
+      <CountUp variant="number" value={value} />
+      <Text variant="label">{label}</Text>
     </View>
   );
 }

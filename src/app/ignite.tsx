@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
 import { BookStar } from '@/components/sky/BookStar';
-import { StarField } from '@/components/StarField';
+import { SkyBackdrop } from '@/components/art/SkyBackdrop';
 import { Text } from '@/components/Text';
 import { getBook } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
@@ -68,7 +68,7 @@ export default function IgniteScreen() {
         styles.root,
         { backgroundColor: colors.night, paddingTop: insets.top, paddingBottom: insets.bottom + space.xl },
       ]}>
-      <StarField density={14} seed={23} />
+      <SkyBackdrop scene="ignite" illustrated={false} density={14} />
       <View style={styles.center}>
         <Animated.View style={starStyle}>
           <BookStar
@@ -80,7 +80,7 @@ export default function IgniteScreen() {
           />
         </Animated.View>
         <Animated.View style={[styles.text, textStyle]}>
-          <Text variant="caption">A star ignites</Text>
+          <Text variant="label">A star ignites</Text>
           <Text variant="title" style={styles.centerText} accessibilityRole="header">
             {book?.title ?? ''}
           </Text>

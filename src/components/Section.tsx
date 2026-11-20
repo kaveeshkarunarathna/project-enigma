@@ -5,7 +5,7 @@ import { Hairline } from './Hairline';
 import { Text } from './Text';
 import { space } from '@/theme/tokens';
 
-/** A titled group: italic caption heading, hairline, then the content. */
+/** A titled group: tracked capital label, hairline, then the content. */
 export function Section({
   title,
   children,
@@ -18,7 +18,7 @@ export function Section({
   return (
     <View style={styles.root}>
       <View style={styles.head}>
-        <Text variant="caption" style={styles.title} accessibilityRole="header">
+        <Text variant="label" style={styles.title} accessibilityRole="header">
           {title}
         </Text>
         {accessory}

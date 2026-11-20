@@ -1,9 +1,11 @@
 /**
- * Night Atlas design tokens.
+ * Night Atlas design tokens, "Whimsical Night" look.
  *
- * Minimal look by default: a flat night, sparse faint stars, content
- * separated by hairlines and space. One glowing hero and one starlight
- * button per screen. No gold anywhere: candlelight is only ever a glow.
+ * A storybook night: an indigo sky fading to a plum floor, tiny stars, a
+ * flat sand-coloured moon and soft plum clouds, all drawn as vectors. Titles
+ * are wide-tracked Lato capitals in warm cream; small metadata is muted.
+ * Content is separated by space and hairlines. One starlight button per
+ * screen. No gold anywhere: candlelight is only ever a glow.
  */
 
 export type Palette = {
@@ -25,18 +27,33 @@ export type Palette = {
   candlelight: string;
   /** Faint background stars. */
   faintStar: string;
+  /** Top of the sky gradient. `night` is the middle. */
+  skyTop: string;
+  /** Bottom of the sky gradient: the warm plum floor. */
+  skyFloor: string;
+  /** Lit top of a cloud; clouds fade from this to nothing. */
+  cloud: string;
+  /** Body of the cloud bank at the foot of the screen. */
+  cloudDeep: string;
+  /** The flat crescent moon in the illustrations. */
+  moon: string;
 };
 
 export const night: Palette = {
-  night: '#0C1322',
-  raised: '#131D31',
-  hairline: 'rgba(243, 235, 216, 0.10)',
-  starlight: '#F3EBD8',
-  onStarlight: '#0C1322',
-  mist: '#93A1BB',
-  aurora: '#86CDBE',
+  night: '#15153A',
+  raised: '#211E46',
+  hairline: 'rgba(234, 219, 193, 0.12)',
+  starlight: '#EADBC1',
+  onStarlight: '#17163A',
+  mist: '#A79DBB',
+  aurora: '#8FD0C0',
   candlelight: '#E9D2AE',
-  faintStar: 'rgba(243, 235, 216, 0.55)',
+  faintStar: 'rgba(243, 230, 204, 0.7)',
+  skyTop: '#1A1A3E',
+  skyFloor: '#211838',
+  cloud: '#4C3B5E',
+  cloudDeep: '#1F1935',
+  moon: '#D8BF97',
 };
 
 /** Light "dawn" mode. Same roles, morning sky. */
@@ -44,12 +61,17 @@ export const dawn: Palette = {
   night: '#E9EEF4',
   raised: '#F4F6F9',
   hairline: 'rgba(20, 32, 58, 0.12)',
-  starlight: '#14203A',
+  starlight: '#1E1B44',
   onStarlight: '#F3EBD8',
-  mist: '#5B6A85',
+  mist: '#5B5F82',
   aurora: '#2F7F70',
   candlelight: '#C9A774',
   faintStar: 'rgba(20, 32, 58, 0.25)',
+  skyTop: '#DCE3F0',
+  skyFloor: '#EFE8EE',
+  cloud: '#FFFFFF',
+  cloudDeep: '#F4EEF2',
+  moon: '#C9A774',
 };
 
 /** 4-point spacing scale. Side margins are always `space.gutter`. */
@@ -71,24 +93,64 @@ export const radius = {
 } as const;
 
 export const fontFamily = {
-  display: 'Gloock_400Regular',
-  body: 'Literata_400Regular',
-  bodyItalic: 'Literata_400Regular_Italic',
-  medium: 'Literata_500Medium',
-  semibold: 'Literata_600SemiBold',
+  /** Wide-tracked capitals: titles, labels, buttons. */
+  display: 'Lato_700Bold',
+  body: 'Lato_400Regular',
+  light: 'Lato_300Light',
+  bold: 'Lato_700Bold',
+  /** Reading and writing keep a serif, so the journal still feels like a notebook. */
+  serif: 'Literata_400Regular',
+  serifItalic: 'Literata_400Regular_Italic',
 } as const;
+
+/** Letter spacing as a share of the font size, like CSS `em`. */
+const track = (size: number, em: number) => Math.round(size * em * 10) / 10;
 
 /**
  * Type scale. Rule: at most three of these sizes on one screen.
- * Captions are Literata italic in sentence case, never all-caps labels.
+ * Titles, labels and buttons are uppercase and widely tracked; body and
+ * captions stay in normal case so longer text is easy to read.
  */
 export const type = {
-  hero: { fontFamily: fontFamily.display, fontSize: 40, lineHeight: 46 },
-  title: { fontFamily: fontFamily.display, fontSize: 28, lineHeight: 34 },
-  heading: { fontFamily: fontFamily.semibold, fontSize: 18, lineHeight: 24 },
-  body: { fontFamily: fontFamily.body, fontSize: 16, lineHeight: 24 },
-  caption: { fontFamily: fontFamily.bodyItalic, fontSize: 13, lineHeight: 18 },
-  button: { fontFamily: fontFamily.medium, fontSize: 16, lineHeight: 20 },
+  /** Big numbers: the lamp's clock, the page stepper. */
+  hero: { fontFamily: fontFamily.light, fontSize: 56, lineHeight: 64, letterSpacing: track(56, 0.04) },
+  title: {
+    fontFamily: fontFamily.display,
+    fontSize: 24,
+    lineHeight: 32,
+    letterSpacing: track(24, 0.2),
+    textTransform: 'uppercase',
+  },
+  heading: {
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    lineHeight: 22,
+    letterSpacing: track(15, 0.16),
+    textTransform: 'uppercase',
+  },
+  /** Small tracked capitals above a group: "IN YOUR HANDS", "THIS WEEK". */
+  label: {
+    fontFamily: fontFamily.body,
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: track(11, 0.3),
+    textTransform: 'uppercase',
+  },
+  /** A stat's number. */
+  number: { fontFamily: fontFamily.light, fontSize: 26, lineHeight: 32, letterSpacing: track(26, 0.04) },
+  body: { fontFamily: fontFamily.body, fontSize: 16, lineHeight: 24, letterSpacing: 0.2 },
+  caption: { fontFamily: fontFamily.body, fontSize: 13, lineHeight: 19, letterSpacing: 0.3 },
+  /** Journal writing, prompts and quotes. */
+  prose: { fontFamily: fontFamily.serifItalic, fontSize: 17, lineHeight: 26 },
+  button: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: track(12, 0.14),
+    textTransform: 'uppercase',
+  },
+  /** Choice chips keep normal case: they often hold book titles. */
+  chip: { fontFamily: fontFamily.body, fontSize: 15, lineHeight: 20, letterSpacing: 0.3 },
 } as const;
 
 export type TypeVariant = keyof typeof type;

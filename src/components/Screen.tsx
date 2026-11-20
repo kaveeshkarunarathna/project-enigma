@@ -6,13 +6,13 @@ import { router } from 'expo-router';
 import { IconButton } from './IconButton';
 import { Rise } from './motion/Rise';
 import { CaretLeftIcon } from './icons';
-import { StarField } from './StarField';
+import { Crescent } from './art/Crescent';
+import { SkyBackdrop } from './art/SkyBackdrop';
 import { Text } from './Text';
-import { useTheme } from '@/theme/theme';
 import { motion, space } from '@/theme/tokens';
 
 /** Room left at the bottom for the floating tab bar. */
-export const TAB_BAR_SPACE = 96;
+export const TAB_BAR_SPACE = 112;
 
 type Props = {
   title: string;
@@ -26,6 +26,13 @@ type Props = {
   tabBar?: boolean;
   /** Shows a back button above the title. Implies no tab bar. */
   back?: boolean;
+  /** Set false to keep the moon and clouds out of a busy screen; stars stay. */
+  illustrated?: boolean;
+  /**
+   * Where the crescent moon goes: beside the title (when there is no
+   * accessory there), up in the sky behind the content, or nowhere.
+   */
+  moon?: 'header' | 'sky' | 'none';
 };
 
 export function goBack() {
@@ -33,7 +40,7 @@ export function goBack() {
   else router.replace('/');
 }
 
-/** Standard screen: night background, sparse stars, Gloock title, 20pt gutters. */
+/** Standard screen: the illustrated night sky, a wide-tracked Lato title, 20pt gutters. */
 export function Screen({
   title,
   caption,
@@ -42,8 +49,9 @@ export function Screen({
   accessory,
   back = false,
   tabBar = !back,
+  illustrated = true,
+  moon = 'header',
 }: Props) {
-  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const padding = {
     paddingTop: insets.top + space.xl,
@@ -68,7 +76,12 @@ export function Screen({
             </Text>
           ) : null}
         </View>
-        {accessory}
+        {accessory ??
+          (illustrated && moon === 'header' ? (
+            <View style={styles.moon}>
+              <Crescent size={26} />
+            </View>
+          ) : null)}
       </View>
     </Rise>
   );
@@ -80,8 +93,8 @@ export function Screen({
   );
 
   return (
-    <View style={[styles.flex, { backgroundColor: colors.night }]}>
-      <StarField />
+    <View style={styles.flex}>
+      <SkyBackdrop scene={title} illustrated={illustrated} moon={moon === 'sky'} />
       {scroll ? (
         <ScrollView
           style={styles.flex}
@@ -107,5 +120,6 @@ const styles = StyleSheet.create({
   body: { gap: space.xl },
   back: { marginLeft: -space.md, marginTop: -space.md },
   header: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
-  caption: { marginTop: space.xs },
+  moon: { alignSelf: 'flex-start', marginTop: space.xs, marginRight: space.xs },
+  caption: { marginTop: space.xs, maxWidth: 320 },
 });

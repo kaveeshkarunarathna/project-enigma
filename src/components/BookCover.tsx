@@ -37,7 +37,7 @@ export function BookCover({ uri, title, width = 56 }: Props) {
           accessibilityIgnoresInvertColors
         />
       ) : (
-        <Text variant="title" tone="mist" style={{ fontSize: width * 0.45, lineHeight: width * 0.55 }}>
+        <Text variant="title" tone="mist" style={{ fontSize: width * 0.45, lineHeight: width * 0.55, letterSpacing: 0 }}>
           {title.trim().charAt(0).toUpperCase() || '·'}
         </Text>
       )}
