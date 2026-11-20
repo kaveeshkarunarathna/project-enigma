@@ -9,7 +9,7 @@ import {
   Skia,
   vec,
 } from '@shopify/react-native-skia';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   cancelAnimation,
   Easing,
@@ -71,6 +71,22 @@ export function BookStar({
     return () => cancelAnimation(rot);
   }, [spin, reduceMotion, rot]);
 
+  // Beads lit so far, as a smooth count: when a session lights more of the
+  // ring, the new beads warm up one after another instead of all at once.
+  const shown = useSharedValue(lit);
+  const lastLit = useRef(lit);
+  useEffect(() => {
+    const from = lastLit.current;
+    lastLit.current = lit;
+    if (lit === from) return;
+    if (reduceMotion || lit < from) {
+      shown.set(lit);
+      return;
+    }
+    const per = Math.min(420, 1400 / (lit - from));
+    shown.set(withTiming(lit, { duration: per * (lit - from), easing: Easing.inOut(Easing.quad) }));
+  }, [lit, reduceMotion, shown]);
+
   // The near half of the orbit, drawn over the star.
   const frontArc = useMemo(
     () => Skia.Path.MakeFromSVGString(`M ${c + R} ${c} A ${R} ${R * TILT} 0 0 1 ${c - R} ${c}`),
@@ -93,7 +109,8 @@ export function BookStar({
         c={c}
         R={R}
         r={beadR}
-        lit={i < lit}
+        index={i}
+        shown={shown}
         litColor={colors.candlelight}
         dimColor={colors.mist}
       />
@@ -173,7 +190,8 @@ function Bead({
   c,
   R,
   r,
-  lit,
+  index,
+  shown,
   litColor,
   dimColor,
 }: {
@@ -183,7 +201,9 @@ function Bead({
   c: number;
   R: number;
   r: number;
-  lit: boolean;
+  index: number;
+  /** Beads lit so far, possibly mid-way through lighting this one. */
+  shown: SharedValue<number>;
   litColor: string;
   dimColor: string;
 }) {
@@ -191,16 +211,22 @@ function Bead({
   const cy = useDerivedValue(() => c + R * TILT * Math.sin(base + rot.get()));
   const depth = useDerivedValue(() => (Math.sin(base + rot.get()) + 1) / 2); // 0 back .. 1 front
   const radius = useDerivedValue(() => r * (0.65 + 0.5 * depth.get()));
-  const opacity = useDerivedValue(() => {
+  const warmth = useDerivedValue(() => Math.min(Math.max(shown.get() - index, 0), 1));
+  const visible = useDerivedValue(() => {
     const d = depth.get();
-    const inLayer = layer === 'front' ? d >= 0.5 : d < 0.5;
-    if (!inLayer) return 0;
-    return lit ? 0.55 + 0.45 * d : 0.16 + 0.16 * d;
+    return (layer === 'front' ? d >= 0.5 : d < 0.5) ? 1 : 0;
   });
+  const dim = useDerivedValue(() => visible.get() * (1 - warmth.get()) * (0.16 + 0.16 * depth.get()));
+  const bright = useDerivedValue(() => visible.get() * warmth.get() * (0.55 + 0.45 * depth.get()));
+  // A brief swell as the bead catches light, settling back to its size.
+  const swell = useDerivedValue(() => radius.get() * (1 + 0.6 * Math.sin(Math.PI * warmth.get())));
   return (
-    <Circle cx={cx} cy={cy} r={radius} color={lit ? litColor : dimColor} opacity={opacity}>
-      {lit ? <BlurMask blur={1.2} style="solid" /> : null}
-    </Circle>
+    <Group>
+      <Circle cx={cx} cy={cy} r={radius} color={dimColor} opacity={dim} />
+      <Circle cx={cx} cy={cy} r={swell} color={litColor} opacity={bright}>
+        <BlurMask blur={1.2} style="solid" />
+      </Circle>
+    </Group>
   );
 }
 

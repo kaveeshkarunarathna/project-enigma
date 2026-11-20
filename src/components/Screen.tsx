@@ -4,11 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { IconButton } from './IconButton';
+import { Rise } from './motion/Rise';
 import { CaretLeftIcon } from './icons';
 import { StarField } from './StarField';
 import { Text } from './Text';
 import { useTheme } from '@/theme/theme';
-import { space } from '@/theme/tokens';
+import { motion, space } from '@/theme/tokens';
 
 /** Room left at the bottom for the floating tab bar. */
 export const TAB_BAR_SPACE = 96;
@@ -50,7 +51,7 @@ export function Screen({
   };
 
   const header = (
-    <View style={styles.headerBlock}>
+    <Rise style={styles.headerBlock}>
       {back ? (
         <View style={styles.back}>
           <IconButton icon={CaretLeftIcon} label="Back" onPress={goBack} />
@@ -69,7 +70,13 @@ export function Screen({
         </View>
         {accessory}
       </View>
-    </View>
+    </Rise>
+  );
+  // The body settles a beat after the title, as one piece; never card by card.
+  const body = (
+    <Rise delay={motion.stagger} style={styles.body}>
+      {children}
+    </Rise>
   );
 
   return (
@@ -81,12 +88,12 @@ export function Screen({
           contentContainerStyle={[styles.content, padding]}
           keyboardShouldPersistTaps="handled">
           {header}
-          {children}
+          {body}
         </ScrollView>
       ) : (
         <View style={[styles.flex, styles.content, padding]}>
           {header}
-          {children}
+          {body}
         </View>
       )}
     </View>
@@ -97,6 +104,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: space.gutter, gap: space.xl },
   headerBlock: { gap: space.sm },
+  body: { gap: space.xl },
   back: { marginLeft: -space.md, marginTop: -space.md },
   header: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
   caption: { marginTop: space.xs },

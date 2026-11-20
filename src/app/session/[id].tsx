@@ -8,6 +8,7 @@ import { PageStepper } from '@/components/PageStepper';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
+import { whisper } from '@/components/motion/Whisper';
 import { getBook } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
@@ -58,6 +59,7 @@ function SessionForm({ session, book }: { session: SessionWithBook; book: Book |
     setBusy(true);
     try {
       await updateSession(db, session.id, { seconds: mins * 60, pageTo: page > 0 ? page : null });
+      whisper('Your night is updated');
       router.back();
     } finally {
       setBusy(false);
@@ -68,6 +70,7 @@ function SessionForm({ session, book }: { session: SessionWithBook; book: Book |
     setBusy(true);
     try {
       await deleteSession(db, session.id);
+      whisper('That session is gone from your night', { haptic: false });
       router.back();
     } finally {
       setBusy(false);

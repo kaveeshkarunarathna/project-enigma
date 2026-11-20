@@ -1,11 +1,18 @@
+import { useEffect, useRef } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Chip } from './Chip';
 import { IconButton } from './IconButton';
 import { MinusIcon, PlusIcon } from './icons';
 import { Text } from './Text';
 import { useTheme } from '@/theme/theme';
-import { fontFamily, space } from '@/theme/tokens';
+import { fontFamily, motion, space } from '@/theme/tokens';
 
 type Props = {
   /** The page the reader stopped on. */
@@ -26,7 +33,17 @@ const JUMPS = [5, 10, 20] as const;
  * few pages at a time. It says how many pages that makes tonight.
  */
 export function PageStepper({ value, onChange, from, total, label = 'Stopped on page' }: Props) {
-  const { colors } = useTheme();
+  const { colors, reduceMotion } = useTheme();
+  // The page number gives a small tick each time it moves, like a counter wheel.
+  const tick = useSharedValue(1);
+  const last = useRef(value);
+  useEffect(() => {
+    if (last.current === value) return;
+    last.current = value;
+    if (reduceMotion) return;
+    tick.set(withSequence(withTiming(1.08, { duration: 90 }), withTiming(1, { duration: motion.fade })));
+  }, [value, reduceMotion, tick]);
+  const ticking = useAnimatedStyle(() => ({ transform: [{ scale: tick.get() }] }));
   const clamp = (n: number) => Math.max(0, total ? Math.min(total, n) : n);
   const read = Math.max(0, value - from);
 
@@ -40,16 +57,18 @@ export function PageStepper({ value, onChange, from, total, label = 'Stopped on 
           tone="mist"
           onPress={() => onChange(clamp(value - 1))}
         />
-        <TextInput
-          value={value ? String(value) : ''}
-          onChangeText={(t) => onChange(clamp(parseInt(t.replace(/\D/g, ''), 10) || 0))}
-          keyboardType="number-pad"
-          accessibilityLabel={`${label}${total ? `, of ${total}` : ''}`}
-          placeholder={String(from || 0)}
-          placeholderTextColor={colors.mist}
-          selectTextOnFocus
-          style={[styles.input, { color: colors.starlight, borderBottomColor: colors.hairline }]}
-        />
+        <Animated.View style={ticking}>
+          <TextInput
+            value={value ? String(value) : ''}
+            onChangeText={(t) => onChange(clamp(parseInt(t.replace(/\D/g, ''), 10) || 0))}
+            keyboardType="number-pad"
+            accessibilityLabel={`${label}${total ? `, of ${total}` : ''}`}
+            placeholder={String(from || 0)}
+            placeholderTextColor={colors.mist}
+            selectTextOnFocus
+            style={[styles.input, { color: colors.starlight, borderBottomColor: colors.hairline }]}
+          />
+        </Animated.View>
         <IconButton
           icon={PlusIcon}
           label="One page on"

@@ -1,8 +1,16 @@
 import { BlurMask, Canvas, Circle, Group, Line, Path, Skia, vec } from '@shopify/react-native-skia';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import {
+  Easing,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { constellationPoints, lineFill, type PathStarState } from '@/domain/paths';
 import { useTheme } from '@/theme/theme';
+import { motion } from '@/theme/tokens';
 
 type Props = {
   pathId: string;
@@ -24,7 +32,12 @@ type Props = {
  * book is read, so the shape appears page by page.
  */
 export function Constellation({ pathId, states, fills, width, height, focus, accessibilityLabel }: Props) {
-  const { colors } = useTheme();
+  const { colors, reduceMotion } = useTheme();
+  // On first sight the lit lines trace themselves in, star to star.
+  const draw = useSharedValue(reduceMotion ? 1 : 0);
+  useEffect(() => {
+    draw.set(withTiming(1, { duration: reduceMotion ? 0 : motion.draw, easing: Easing.inOut(Easing.cubic) }));
+  }, [draw, reduceMotion]);
   const pts = constellationPoints(pathId, states.length).map((p) => ({ x: p.x * width, y: p.y * height }));
   const fill = useMemo(() => states.map((s, i) => fills?.[i] ?? (s === 'finished' ? 1 : 0)), [states, fills]);
 
@@ -48,12 +61,14 @@ export function Constellation({ pathId, states, fills, width, height, focus, acc
                 opacity={0.2}
               />
               {t > 0 ? (
-                <Line
-                  p1={vec(a.x, a.y)}
-                  p2={vec(a.x + (p.x - a.x) * t, a.y + (p.y - a.y) * t)}
+                <LitLine
+                  a={a}
+                  b={p}
+                  t={t}
+                  draw={draw}
+                  index={i}
+                  segments={pts.length - 1}
                   color={colors.starlight}
-                  strokeWidth={1.2}
-                  opacity={0.6}
                 />
               ) : null}
             </Group>
@@ -111,6 +126,35 @@ export function Constellation({ pathId, states, fills, width, height, focus, acc
       </Group>
     </Canvas>
   );
+}
+
+/**
+ * The lit part of one line. Lines take turns: each draws during its own
+ * slice of the shared `draw` progress, so the shape traces itself in order.
+ */
+function LitLine({
+  a,
+  b,
+  t,
+  draw,
+  index,
+  segments,
+  color,
+}: {
+  a: { x: number; y: number };
+  b: { x: number; y: number };
+  t: number;
+  draw: SharedValue<number>;
+  index: number;
+  segments: number;
+  color: string;
+}) {
+  const p2 = useDerivedValue(() => {
+    const local = Math.min(Math.max(draw.get() * segments - index, 0), 1);
+    const k = t * local;
+    return vec(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k);
+  });
+  return <Line p1={vec(a.x, a.y)} p2={p2} color={color} strokeWidth={1.2} opacity={0.6} />;
 }
 
 /** A clockwise arc from twelve o'clock, `t` of the way round. */

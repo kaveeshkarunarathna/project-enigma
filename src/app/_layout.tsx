@@ -13,6 +13,7 @@ import { Suspense, useEffect, type ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { CURATED_PATHS } from '@/content/paths';
+import { WhisperHost } from '@/components/motion/Whisper';
 import { DataProvider, onDatabaseReady, useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
 import { syncCuratedPaths } from '@/data/paths';
@@ -70,6 +71,7 @@ function RootStack() {
           options={{ presentation: 'fullScreenModal', animation: reduceMotion ? 'none' : 'fade' }}
         />
       </Stack>
+      <WhisperHost />
     </>
   );
 }

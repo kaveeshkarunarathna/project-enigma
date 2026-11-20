@@ -8,9 +8,9 @@ import { IconButton } from '@/components/IconButton';
 import { CaretLeftIcon, CaretRightIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
+import { Stat } from '@/components/Stat';
 import { MoonCanvas } from '@/components/sky/Moon';
 import { moonLabel } from '@/components/sky/WeekStrip';
-import { Text } from '@/components/Text';
 import { useDb } from '@/data/DataProvider';
 import { listEntries } from '@/data/journal';
 import { useLiveQuery } from '@/data/live';
@@ -132,18 +132,8 @@ export default function NightScreen() {
   );
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text variant="title">{value}</Text>
-      <Text variant="caption">{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   nav: { flexDirection: 'row' },
   summary: { flexDirection: 'row', alignItems: 'center', gap: space.xl },
   stats: { flexDirection: 'row', gap: space.xl },
-  stat: { gap: 2 },
 });

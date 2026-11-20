@@ -9,6 +9,7 @@ import { GearIcon } from '@/components/icons';
 import { Pressable } from '@/components/Pressable';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
+import { Stat } from '@/components/Stat';
 import { BookStar } from '@/components/sky/BookStar';
 import { Constellation } from '@/components/sky/Constellation';
 import { Ignite } from '@/components/sky/Ignite';
@@ -289,15 +290,6 @@ function PathGlance({
   );
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text variant="title">{value}</Text>
-      <Text variant="caption">{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   sky: { aspectRatio: 1.25, justifyContent: 'center' },
   overlay: {
@@ -322,7 +314,6 @@ const styles = StyleSheet.create({
   week: { gap: space.md, paddingTop: space.lg },
   stats: { flexDirection: 'row', gap: space.xl },
   allTime: { justifyContent: 'space-between', paddingTop: space.md },
-  stat: { gap: 2, flexShrink: 1 },
   backup: { paddingVertical: space.md },
   quoteLink: { alignSelf: 'center', paddingVertical: space.xs },
 });

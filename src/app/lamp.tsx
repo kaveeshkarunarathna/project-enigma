@@ -25,6 +25,7 @@ import { goBack } from '@/components/Screen';
 import { BookStar } from '@/components/sky/BookStar';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
+import { whisper } from '@/components/motion/Whisper';
 import { PROMPT_AUTHOR } from '@/content/prompts';
 import { getBook, setBookStatus, type Book } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
@@ -355,6 +356,9 @@ function AfterSession({
       if (markFinished && result.session.bookId) {
         router.replace({ pathname: '/ignite', params: { bookId: result.session.bookId } });
       } else {
+        whisper(thought.trim() ? 'Your night and your thought are kept' : "Tonight's star is in your sky", {
+          haptic: false,
+        });
         goBack();
       }
     } finally {

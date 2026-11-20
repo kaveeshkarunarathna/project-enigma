@@ -7,6 +7,7 @@ import { IconButton } from '@/components/IconButton';
 import { CaretLeftIcon, CaretRightIcon } from '@/components/icons';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
+import { Stat } from '@/components/Stat';
 import { MoonCanvas } from '@/components/sky/Moon';
 import { moonLabel, WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
@@ -221,15 +222,6 @@ function MonthMoons({
   );
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text variant="title">{value}</Text>
-      <Text variant="caption">{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   week: { gap: space.lg },
   center: { textAlign: 'center' },
@@ -240,5 +232,4 @@ const styles = StyleSheet.create({
   weekday: { flex: 1, textAlign: 'center', fontStyle: 'normal', fontSize: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingVertical: space.md },
   stats: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: space.md },
-  stat: { alignItems: 'flex-start', gap: 2 },
 });
