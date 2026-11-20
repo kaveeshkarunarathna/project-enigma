@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
  * A tiny change signal. Every write bumps the version for its tables, and
  * `useLiveQuery` re-runs any query that reads one of them.
  */
-export type Table = 'books' | 'sessions' | 'nights' | 'journal' | 'paths' | 'settings';
+export type Table = 'books' | 'sessions' | 'nights' | 'journal' | 'paths' | 'settings' | 'classics';
 
 const versions: Record<Table, number> = {
   books: 0,
+  classics: 0,
   sessions: 0,
   nights: 0,
   journal: 0,

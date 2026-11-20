@@ -27,11 +27,11 @@ src/
     search.tsx     Find a book (Open Library).
     book/          Book page and add-by-hand form.
   components/      Shared UI: Text, Button, Pressable, Screen, StarField, TabBar.
-  content/         Writing bundled with the app: reflection prompts, curated paths.
+  content/         Writing bundled with the app: reflection prompts, curated paths, the classics catalog.
   data/            SQLite schema, migrations and repositories (books, sessions,
                    journal, paths, settings), plus useLiveQuery.
   features/        Feature helpers shared by several screens (formatting, hooks).
-  services/        Device and network services: the Open Library catalog (book facts and covers) and the on-device page scanner.
+  services/        Device and network services: the Open Library catalog (book facts and covers), Project Gutenberg downloads for the free classics, and the on-device page scanner.
   domain/          Pure rules: nights, Moon Log, progress, quotes. No React, no SQL.
   theme/           Design tokens and the theme provider.
   __tests__/       Unit tests (Jest). Data tests run on in-memory SQLite.
