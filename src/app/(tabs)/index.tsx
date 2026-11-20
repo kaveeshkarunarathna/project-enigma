@@ -55,7 +55,7 @@ export default function SkyScreen() {
       title="Your sky"
       caption={
         count
-          ? `${count} ${count === 1 ? 'star' : 'stars'}, one for every night you read. Nothing here goes dark.`
+          ? `${count} ${count === 1 ? 'star' : 'stars'}, one for every night you read. Tap one to see its night.`
           : 'Every night you read adds a star. Nothing here ever goes dark.'
       }
       accessory={
@@ -63,7 +63,13 @@ export default function SkyScreen() {
       }>
       <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={styles.sky}>
         {width && nights ? (
-          <NightSky nights={nights} width={width} height={width * 0.8} goalMinutes={settings.goalMinutes} />
+          <NightSky
+            nights={nights}
+            width={width}
+            height={width * 0.8}
+            goalMinutes={settings.goalMinutes}
+            onPressNight={(night) => router.push({ pathname: '/night/[night]', params: { night } })}
+          />
         ) : null}
         {nights && !count ? (
           <View style={styles.overlay} pointerEvents="none">

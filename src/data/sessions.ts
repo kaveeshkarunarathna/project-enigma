@@ -4,7 +4,7 @@ import { notifyChanged } from './live';
 import { getSettings } from './settings';
 import type { NightRecord } from '@/domain/moonlog';
 import type { PaceSession } from '@/domain/pace';
-import { litBeads, sessionStardust, STARDUST_PER_BEAD } from '@/domain/progress';
+import { litBeads, sessionStardust, STARDUST_PER_BEAD, STARDUST_PER_MINUTE } from '@/domain/progress';
 import { nightKey } from '@/domain/time';
 
 export type Session = {
@@ -219,9 +219,116 @@ export async function listSessions(db: Db, opts: { bookId?: string; night?: stri
   return rows.map(toSession);
 }
 
+export type SessionWithBook = Session & { bookTitle: string | null };
+
+/** One night's sessions, oldest first, with their book's title. */
+export async function nightSessions(db: Db, night: string): Promise<SessionWithBook[]> {
+  const rows = await db.getAllAsync<SessionRow & { book_title: string | null }>(
+    `SELECT s.*, b.title AS book_title FROM sessions s LEFT JOIN books b ON b.id = s.book_id
+     WHERE s.night = ? ORDER BY s.started_at`,
+    [night],
+  );
+  return rows.map((r) => ({ ...toSession(r), bookTitle: r.book_title }));
+}
+
+export async function getSession(db: Db, id: string): Promise<SessionWithBook | null> {
+  const row = await db.getFirstAsync<SessionRow & { book_title: string | null }>(
+    `SELECT s.*, b.title AS book_title FROM sessions s LEFT JOIN books b ON b.id = s.book_id WHERE s.id = ?`,
+    [id],
+  );
+  return row ? { ...toSession(row), bookTitle: row.book_title } : null;
+}
+
+/**
+ * True when this is the book's latest session with a stopping page, so its
+ * page is where the book stands now and a correction should move the book.
+ */
+async function isLatestPaged(db: Db, row: SessionRow): Promise<boolean> {
+  if (!row.book_id || row.page_to == null) return false;
+  const later = await db.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM sessions
+     WHERE book_id = ? AND id != ? AND page_to IS NOT NULL AND started_at > ?`,
+    [row.book_id, row.id, row.started_at],
+  );
+  return !later?.n;
+}
+
+/**
+ * Corrects a session: how long it was, and the page the reader stopped on.
+ * Minutes change the session's stardust (and its book's) by the same rule
+ * as when it was saved. A new page on the book's latest session moves the
+ * book there, even backwards, since this is a correction.
+ */
+export async function updateSession(
+  db: Db,
+  id: string,
+  input: { seconds: number; pageTo: number | null },
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    const row = await db.getFirstAsync<SessionRow>('SELECT * FROM sessions WHERE id = ?', [id]);
+    if (!row) return;
+    const seconds = Math.max(0, Math.round(input.seconds));
+    const book = row.book_id ? await getBook(db, row.book_id) : null;
+    const cap = book?.pageCount ?? Number.MAX_SAFE_INTEGER;
+    const pageTo = input.pageTo != null && input.pageTo > 0 ? Math.min(Math.round(input.pageTo), cap) : null;
+    const delta = (Math.floor(seconds / 60) - Math.floor(row.seconds / 60)) * STARDUST_PER_MINUTE;
+    const stardust = Math.max(0, row.stardust + delta);
+    const latest = await isLatestPaged(db, { ...row, page_to: pageTo ?? row.page_to });
+
+    await db.runAsync('UPDATE sessions SET seconds = ?, page_to = ?, stardust = ? WHERE id = ?', [
+      seconds,
+      pageTo,
+      stardust,
+      id,
+    ]);
+    if (book) {
+      // Only when the book still stands where this session left it.
+      const follows = latest && pageTo != null && (row.page_to == null || book.currentPage === row.page_to);
+      // A page added to a session that had none only ever moves the book on.
+      const page = !follows
+        ? book.currentPage
+        : row.page_to == null
+          ? Math.max(book.currentPage, pageTo)
+          : pageTo;
+      await db.runAsync('UPDATE books SET stardust = MAX(0, stardust + ?), current_page = ? WHERE id = ?', [
+        stardust - row.stardust,
+        page,
+        book.id,
+      ]);
+    }
+  });
+  notifyChanged('sessions', 'nights', 'books');
+}
+
+/**
+ * Deletes a session. Its stardust leaves its book, and when it was the
+ * book's latest stopping page, the book goes back to where it was before.
+ */
 export async function deleteSession(db: Db, id: string): Promise<void> {
-  await db.runAsync('DELETE FROM sessions WHERE id = ?', [id]);
-  notifyChanged('sessions', 'nights');
+  await db.withTransactionAsync(async () => {
+    const row = await db.getFirstAsync<SessionRow>('SELECT * FROM sessions WHERE id = ?', [id]);
+    if (!row) return;
+    const latest = await isLatestPaged(db, row);
+    await db.runAsync('DELETE FROM sessions WHERE id = ?', [id]);
+    if (!row.book_id) return;
+    await db.runAsync('UPDATE books SET stardust = MAX(0, stardust - ?) WHERE id = ?', [
+      row.stardust,
+      row.book_id,
+    ]);
+    const book = await getBook(db, row.book_id);
+    if (latest && book?.currentPage === row.page_to) {
+      const prev = await db.getFirstAsync<{ page: number | null }>(
+        `SELECT page_to AS page FROM sessions WHERE book_id = ? AND page_to IS NOT NULL
+         ORDER BY started_at DESC LIMIT 1`,
+        [row.book_id],
+      );
+      await db.runAsync('UPDATE books SET current_page = ? WHERE id = ?', [
+        prev?.page ?? row.page_from ?? 0,
+        row.book_id,
+      ]);
+    }
+  });
+  notifyChanged('sessions', 'nights', 'books');
 }
 
 /** Moon Log records for nights in `[from, to]` (inclusive `YYYY-MM-DD`). */

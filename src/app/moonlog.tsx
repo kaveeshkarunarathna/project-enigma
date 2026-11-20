@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -208,7 +209,14 @@ function MonthMoons({
           </Text>
         ))}
       </View>
-      {width ? <MoonCanvas width={width} height={row * grid.length} moons={moons} /> : null}
+      {width ? (
+        <MoonCanvas
+          width={width}
+          height={row * grid.length}
+          moons={moons}
+          onPressMoon={(night) => router.push({ pathname: '/night/[night]', params: { night } })}
+        />
+      ) : null}
     </View>
   );
 }

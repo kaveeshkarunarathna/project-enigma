@@ -113,7 +113,7 @@ export async function getEntry(db: Db, id: string): Promise<JournalEntry | null>
 
 export async function listEntries(
   db: Db,
-  opts: { kind?: EntryKind; bookId?: string; search?: string; limit?: number } = {},
+  opts: { kind?: EntryKind; bookId?: string; night?: string; search?: string; limit?: number } = {},
 ): Promise<JournalEntry[]> {
   const where: string[] = [];
   const params: (string | number)[] = [];
@@ -124,6 +124,10 @@ export async function listEntries(
   if (opts.bookId) {
     where.push('j.book_id = ?');
     params.push(opts.bookId);
+  }
+  if (opts.night) {
+    where.push('j.night = ?');
+    params.push(opts.night);
   }
   if (opts.search?.trim()) {
     where.push(`(j.body LIKE ? ESCAPE '\\' OR j.quote_text LIKE ? ESCAPE '\\')`);

@@ -8,6 +8,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { Pressable } from '@/components/Pressable';
 import { goBack, Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
+import { PageTrail } from '@/components/sky/PageTrail';
+import { Hairline } from '@/components/Hairline';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { deleteBook, getBook, setBookStatus, updateBook, type Book } from '@/data/books';
@@ -15,9 +17,11 @@ import { getClassicTextForBook } from '@/data/classics';
 import { useDb } from '@/data/DataProvider';
 import { findClassic } from '@/content/classics';
 import { useLiveQuery } from '@/data/live';
-import { listSessions } from '@/data/sessions';
+import { listSessions, type Session } from '@/data/sessions';
 import { bookCaption, formatYear } from '@/features/books/format';
+import { nightTitle, pageSeries } from '@/domain/nights';
 import { bookCompletion, litBeads, ringSize } from '@/domain/progress';
+import { SessionRow } from '@/features/sessions/SessionRow';
 import { space } from '@/theme/tokens';
 
 function toCount(text: string): number | null {
@@ -75,6 +79,8 @@ export default function BookScreen() {
         />
       ) : null}
 
+      {sessions?.length ? <History book={book} sessions={sessions} /> : null}
+
       <Section title="Shelf">
         <View style={styles.links}>
           {book.status !== 'finished' ? (
@@ -124,6 +130,48 @@ export default function BookScreen() {
         </View>
       </Section>
     </Screen>
+  );
+}
+
+const HISTORY_ROWS = 8;
+
+/** Every session with this book: its pages over time, then the sittings, newest first. */
+function History({ book, sessions }: { book: Book; sessions: Session[] }) {
+  const [width, setWidth] = useState(0);
+  const [all, setAll] = useState(false);
+  const series = pageSeries([...sessions].reverse());
+  const shown = all ? sessions : sessions.slice(0, HISTORY_ROWS);
+  const first = series[0];
+  const last = series[series.length - 1];
+  return (
+    <Section title={`Reading history, ${sessions.length} ${sessions.length === 1 ? 'sitting' : 'sittings'}`}>
+      {series.length >= 2 ? (
+        <View style={styles.trail} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+          {width ? (
+            <PageTrail
+              points={series}
+              total={book.pageCount}
+              width={width}
+              height={88}
+              accessibilityLabel={`Pages over time: page ${first.page} on ${nightTitle(first.night)}, page ${last.page} on ${nightTitle(last.night)}.`}
+            />
+          ) : null}
+          <View style={styles.trailEnds}>
+            <Text variant="caption">{nightTitle(first.night)}</Text>
+            <Text variant="caption">{nightTitle(last.night)}</Text>
+          </View>
+        </View>
+      ) : null}
+      {shown.map((s, i) => (
+        <View key={s.id}>
+          {i > 0 ? <Hairline /> : null}
+          <SessionRow session={s} title={nightTitle(s.night)} />
+        </View>
+      ))}
+      {!all && sessions.length > HISTORY_ROWS ? (
+        <TextLink label={`Show all ${sessions.length}`} onPress={() => setAll(true)} />
+      ) : null}
+    </Section>
   );
 }
 
@@ -239,6 +287,8 @@ function TextLink({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  trail: { gap: space.xs, paddingTop: space.md },
+  trailEnds: { flexDirection: 'row', justifyContent: 'space-between' },
   hero: { flexDirection: 'row', gap: space.xl, alignItems: 'flex-end' },
   heroText: { flex: 1, gap: space.xs },
   primary: { alignSelf: 'stretch' },
