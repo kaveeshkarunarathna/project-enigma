@@ -49,7 +49,7 @@ export function PageStepper({ value, onChange, from, total, label = 'Stopped on 
 
   return (
     <View style={styles.root}>
-      <Text variant="caption">{label}</Text>
+      <Text variant="label">{label}</Text>
       <View style={styles.row}>
         <IconButton
           icon={MinusIcon}
@@ -92,9 +92,11 @@ export function PageStepper({ value, onChange, from, total, label = 'Stopped on 
           />
         ))}
       </View>
-      <Text variant="caption" tone={read ? 'aurora' : undefined} accessibilityLiveRegion="polite">
-        {read ? `${read} ${read === 1 ? 'page' : 'pages'} this session` : `You were on page ${from || 0}`}
-      </Text>
+      {read ? (
+        <Text variant="caption" tone="aurora" accessibilityLiveRegion="polite">
+          {`${read} ${read === 1 ? 'page' : 'pages'} this session`}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -104,8 +106,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   input: {
     width: 112,
-    fontFamily: fontFamily.display,
-    fontSize: 40,
+    fontFamily: fontFamily.light,
+    fontSize: 44,
     lineHeight: 48,
     textAlign: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth * 2,

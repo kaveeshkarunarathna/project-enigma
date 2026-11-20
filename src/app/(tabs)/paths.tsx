@@ -39,7 +39,7 @@ export default function PathsScreen() {
   const genres = GENRES.filter((g) => present.has(g));
 
   return (
-    <Screen title="Paths" caption="Books that lead into each other, like stars in a constellation.">
+    <Screen title="Paths">
       {yours.length ? (
         <Section title="Your paths">
           {yours.map((p, i) => (

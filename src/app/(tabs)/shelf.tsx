@@ -27,7 +27,6 @@ export default function ShelfScreen() {
   return (
     <Screen
       title="Your shelf"
-      caption="Every book you are reading, want to read, or have finished."
       accessory={
         <View style={styles.accessory}>
           <IconButton icon={BarcodeIcon} label="Scan a barcode" onPress={() => router.push('/barcode')} />

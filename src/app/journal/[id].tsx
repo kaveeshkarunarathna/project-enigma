@@ -64,7 +64,7 @@ function Editor({ entry }: { entry: JournalEntry }) {
       caption={[entryDate(entry.createdAt), entry.bookTitle].filter(Boolean).join(', ')}>
       {prompt ? (
         <View style={styles.prompt}>
-          <Text variant="heading" style={styles.promptText}>
+          <Text variant="prose" style={styles.promptText}>
             {prompt.text}
           </Text>
           <Text variant="caption">{PROMPT_AUTHOR}</Text>
@@ -74,7 +74,7 @@ function Editor({ entry }: { entry: JournalEntry }) {
         <>
           <TextField label="Quote" value={quote} onChangeText={setQuote} multiline />
           <TextField label="Page" value={page} onChangeText={setPage} keyboardType="number-pad" />
-          {entry.quoteSource === 'scanned' ? <Text variant="caption">Scanned from the page.</Text> : null}
+          {entry.quoteSource === 'scanned' ? <Text variant="label">Scanned from the page.</Text> : null}
         </>
       ) : null}
       <TextField

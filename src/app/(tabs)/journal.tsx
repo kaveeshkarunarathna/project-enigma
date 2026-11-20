@@ -7,7 +7,7 @@ import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
 import { Hairline } from '@/components/Hairline';
 import { IconButton } from '@/components/IconButton';
-import { PlusIcon, ScanIcon } from '@/components/icons';
+import { MagnifyingGlassIcon, PlusIcon, ScanIcon, XIcon } from '@/components/icons';
 import { Pressable } from '@/components/Pressable';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -22,8 +22,7 @@ import { useReaderGenre } from '@/features/paths/useReaderGenre';
 import { nightKey } from '@/domain/time';
 import { BookPicker } from '@/features/journal/BookPicker';
 import { EntryItem } from '@/features/journal/EntryItem';
-import { useTheme } from '@/theme/theme';
-import { radius, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 
 const FILTERS: { label: string; kind: EntryKind | null }[] = [
   { label: 'All', kind: null },
@@ -34,11 +33,11 @@ const FILTERS: { label: string; kind: EntryKind | null }[] = [
 
 export default function JournalScreen() {
   const db = useDb();
-  const { colors } = useTheme();
   const [kind, setKind] = useState<EntryKind | null>(null);
   const [search, setSearch] = useState('');
   const [filterBook, setFilterBook] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [searching, setSearching] = useState(false);
   const genre = useReaderGenre();
   const prompt = promptFor(nightKey(), genre, offset);
   const { data: book } = useLiveQuery(() => currentBook(db), ['books', 'sessions']);
@@ -53,9 +52,22 @@ export default function JournalScreen() {
   return (
     <Screen
       title="Journal"
-      caption="What the book made you think. It stays on your phone."
       accessory={
         <View style={styles.accessory}>
+          {hasAny ? (
+            <IconButton
+              icon={searching ? XIcon : MagnifyingGlassIcon}
+              label={searching ? 'Close search' : 'Search and filter'}
+              onPress={() => {
+                if (searching) {
+                  setSearch('');
+                  setKind(null);
+                  setFilterBook(null);
+                }
+                setSearching((v) => !v);
+              }}
+            />
+          ) : null}
           <IconButton
             icon={ScanIcon}
             label="Scan a quote"
@@ -71,8 +83,8 @@ export default function JournalScreen() {
         </View>
       }>
       <View style={styles.prompt}>
-        <Text variant="caption">Tonight’s question</Text>
-        <Text variant="heading" style={styles.promptText}>
+        <Text variant="label">Tonight’s question</Text>
+        <Text variant="prose" style={styles.promptText}>
           {prompt.text}
         </Text>
         <Text variant="caption">{PROMPT_AUTHOR}</Text>
@@ -96,22 +108,8 @@ export default function JournalScreen() {
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityHint="Opens the page scanner"
-        haptic={false}
-        onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book?.id ?? '' } })}
-        style={styles.scanRow}>
-        <ScanIcon size={22} weight="light" color={colors.aurora} />
-        <View style={styles.scanText}>
-          <Text tone="aurora">Scan a quote from the page</Text>
-          <Text variant="caption">
-            {book ? `From ${book.title}. ` : ''}Read on your phone, the photo deleted straight away.
-          </Text>
-        </View>
-      </Pressable>
 
-      {hasAny ? (
+      {hasAny && searching ? (
         <View style={styles.tools}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {FILTERS.map((f) => (
@@ -138,7 +136,7 @@ export default function JournalScreen() {
       {!loading && !hasAny ? (
         <EmptyState
           heading="Nothing written yet"
-          body="Answer tonight’s question, keep a note, or save a short quote you want to remember."
+          body="Answer tonight’s question, or keep a line from the page."
         />
       ) : null}
 
@@ -171,13 +169,5 @@ const styles = StyleSheet.create({
   another: { paddingVertical: space.md },
   tools: { gap: space.md },
   accessory: { flexDirection: 'row' },
-  scanRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
-  },
-  scanText: { flex: 1, gap: 2 },
   chips: { gap: space.sm },
 });

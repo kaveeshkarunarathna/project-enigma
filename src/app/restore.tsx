@@ -85,7 +85,7 @@ export default function RestoreScreen() {
           </View>
           {!phoneEmpty ? (
             <View style={styles.compare}>
-              <Text variant="caption">On this phone now</Text>
+              <Text variant="label">On this phone now</Text>
               <Text>{hereText}</Text>
               <Text tone="mist">
                 Restoring replaces everything on this phone with the backup. What is here now and not in the

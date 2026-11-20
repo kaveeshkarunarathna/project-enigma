@@ -274,7 +274,7 @@ function Reader({ classic, text }: { classic: Classic; text: ClassicText }) {
                     delayLongPress={450}>
                     <Text
                       style={{
-                        fontFamily: fontFamily.body,
+                        fontFamily: fontFamily.serif,
                         fontSize: size,
                         lineHeight: Math.round(size * 1.6),
                         color: colors.starlight,

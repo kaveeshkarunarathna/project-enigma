@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@expo-google-fonts/gloock": "^0.4.2",
+    "@expo-google-fonts/lato": "^0.4.1",
     "@expo-google-fonts/literata": "^0.4.3",
     "@shopify/react-native-skia": "2.14.0",
     "expo": "~58.0.26",
@@ -20,6 +20,7 @@
     "expo-linking": "~58.0.17",
     "expo-notifications": "~58.1.9",
     "expo-router": "~58.0.32",
+    "expo-sensors": "~58.0.5",
     "expo-sharing": "~58.0.23",
     "expo-splash-screen": "~58.0.14",
     "expo-sqlite": "~58.0.18",

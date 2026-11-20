@@ -17,6 +17,7 @@ export {
   DownloadSimpleIcon,
   FeatherIcon,
   GearIcon,
+  LampIcon,
   ListBulletsIcon,
   MagnifyingGlassIcon,
   MinusIcon,

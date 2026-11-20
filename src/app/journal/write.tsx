@@ -99,7 +99,7 @@ export default function WriteScreen() {
         </View>
       ) : (
         <View style={styles.prompt}>
-          <Text variant="heading" style={styles.promptText}>
+          <Text variant="prose" style={styles.promptText}>
             {prompt.text}
           </Text>
           <Text variant="caption">{PROMPT_AUTHOR}</Text>
@@ -107,7 +107,7 @@ export default function WriteScreen() {
       )}
 
       <View style={styles.field}>
-        <Text variant="caption">Book</Text>
+        <Text variant="label">Book</Text>
         <BookPicker value={bookId} onChange={setBookId} />
       </View>
 

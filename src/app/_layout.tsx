@@ -1,9 +1,7 @@
-import { Gloock_400Regular } from '@expo-google-fonts/gloock';
+import { Lato_300Light, Lato_400Regular, Lato_700Bold } from '@expo-google-fonts/lato';
 import {
   Literata_400Regular,
   Literata_400Regular_Italic,
-  Literata_500Medium,
-  Literata_600SemiBold,
   useFonts,
 } from '@expo-google-fonts/literata';
 import { Stack } from 'expo-router';
@@ -78,11 +76,11 @@ function RootStack() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Gloock_400Regular,
+    Lato_300Light,
+    Lato_400Regular,
+    Lato_700Bold,
     Literata_400Regular,
     Literata_400Regular_Italic,
-    Literata_500Medium,
-    Literata_600SemiBold,
   });
 
   const skiaReady = useSkiaReady();

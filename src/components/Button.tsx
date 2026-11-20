@@ -47,7 +47,7 @@ export function Button({ label, onPress, kind = 'primary', disabled, accessibili
 const styles = StyleSheet.create({
   base: {
     minHeight: 52,
-    paddingHorizontal: space.xl,
+    paddingHorizontal: space.lg,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
