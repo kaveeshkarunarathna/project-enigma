@@ -22,6 +22,8 @@ motion. Only the look changed.
   over text.
 - **Clouds.** Soft plum clouds fade out at the bottom and drift sideways
   very slowly (a 90 second cycle). With Reduce Motion they stay still.
+  Each cloud is one outline traced over its round puffs (`cloudPath.ts`),
+  so the soft fill has no seams where puffs overlap.
 - **Cloud bank.** The tab bar now rests on a row of clouds at the foot of
   the screen instead of a capsule; scrolling content sinks into it.
 - **Type.** Lato replaces Gloock and Literata in the interface. Titles,
@@ -41,7 +43,8 @@ the app size.
 - `src/theme/tokens.ts`: new palette roles (`skyTop`, `skyFloor`, `cloud`,
   `cloudDeep`, `moon`) and the Lato type scale, with `label`, `number`,
   `chip` and `prose` variants.
-- `src/components/art/`: `SkyBackdrop`, `Crescent`, `Cloud`, `CloudBank`.
+- `src/components/art/`: `SkyBackdrop`, `Crescent`, `Cloud`, `CloudBank`,
+  and `cloudPath.ts` (tested in `src/__tests__/cloudPath.test.ts`).
 - `src/components/Screen.tsx`, `TabBar.tsx`, `EmptyState.tsx`, `Section.tsx`,
   `Stat.tsx`, `Chip.tsx`, `Button.tsx`, `PageStepper.tsx`: the new look.
 - `src/app/_layout.tsx`: loads Lato (Light, Regular, Bold) and Literata

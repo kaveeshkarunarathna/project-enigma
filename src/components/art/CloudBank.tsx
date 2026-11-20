@@ -1,5 +1,8 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Defs, G, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { useMemo } from 'react';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+
+import { cloudPath } from './cloudPath';
 
 import { useSvgId } from './svgId';
 import { useTheme } from '@/theme/theme';
@@ -10,7 +13,7 @@ type Props = {
 };
 
 /** Puff sizes along the bank, as fractions of the bank height. Fixed so it never shifts. */
-const PUFFS = [0.42, 0.5, 0.38, 0.52, 0.4, 0.48, 0.4];
+const PUFFS = [0.3, 0.36, 0.28, 0.38, 0.3, 0.35, 0.27, 0.37, 0.31];
 
 /**
  * A row of soft clouds along the foot of the screen. The tab bar sits on it,
@@ -21,7 +24,18 @@ export function CloudBank({ height = 120 }: Props) {
   const { width } = useWindowDimensions();
   const id = useSvgId('cb');
   const step = width / (PUFFS.length - 1);
-  const crest = height * 0.45;
+  const crest = height * 0.52;
+  const d = useMemo(
+    () =>
+      cloudPath(
+        PUFFS.map(
+          (r, i) =>
+            [i * step + (i % 2 ? step * 0.1 : 0), crest + (i % 2 ? -height * 0.04 : height * 0.05), r * height] as const,
+        ),
+        { base: height, shelf: { y: crest + height * 0.14, from: 0, to: width }, samples: 120 },
+      ),
+    [step, crest, height, width],
+  );
   return (
     <View pointerEvents="none" style={[styles.wrap, { height }]}>
       <Svg width={width} height={height} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -32,17 +46,7 @@ export function CloudBank({ height = 120 }: Props) {
             <Stop offset="1" stopColor={colors.cloudDeep} stopOpacity={1} />
           </LinearGradient>
         </Defs>
-        <G fill={`url(#${id})`}>
-          {PUFFS.map((r, i) => (
-            <Circle
-              key={i}
-              cx={i * step + (i % 2 ? step * 0.1 : 0)}
-              cy={crest + (i % 2 ? -height * 0.06 : height * 0.04)}
-              r={r * height}
-            />
-          ))}
-          <Rect x={0} y={crest} width={width} height={height - crest} />
-        </G>
+        <Path d={d} fill={`url(#${id})`} />
       </Svg>
     </View>
   );

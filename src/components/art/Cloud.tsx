@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -8,29 +8,34 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, G, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+
+import { cloudPath } from './cloudPath';
 
 import { useSvgId } from './svgId';
 import { useTheme } from '@/theme/theme';
 import { motion } from '@/theme/tokens';
 
-/** Puffs of a cloud on a 100 x 50 grid: [cx, cy, r]. The base is a rounded bar. */
+/** Puffs of a cloud on a 100 x 50 grid: [cx, cy, r]. They merge into one outline with a flat base. */
 const SHAPES = {
   wide: [
-    [22, 30, 15],
-    [44, 20, 20],
-    [68, 28, 15],
-    [84, 31, 12],
+    [14, 36, 10],
+    [32, 26, 15],
+    [54, 20, 18],
+    [74, 28, 14],
+    [89, 35, 9],
   ],
   tall: [
-    [26, 30, 14],
-    [50, 18, 22],
-    [74, 30, 14],
+    [18, 34, 11],
+    [36, 24, 16],
+    [58, 18, 20],
+    [80, 32, 12],
   ],
   small: [
-    [30, 30, 13],
-    [52, 24, 16],
-    [72, 31, 11],
+    [24, 36, 10],
+    [44, 27, 15],
+    [64, 30, 12],
+    [80, 37, 8],
   ],
 } as const;
 
@@ -55,6 +60,14 @@ export function Cloud({ width, shape = 'wide', opacity = 0.8, drift = 0, style }
   const id = useSvgId('cl');
   const height = width / 2;
   const s = width / 100;
+  const d = useMemo(
+    () =>
+      cloudPath(
+        SHAPES[shape].map(([cx, cy, r]) => [cx * s, cy * s, r * s] as const),
+        { base: 44 * s },
+      ),
+    [shape, s],
+  );
 
   const x = useSharedValue(0);
   useEffect(() => {
@@ -83,12 +96,7 @@ export function Cloud({ width, shape = 'wide', opacity = 0.8, drift = 0, style }
             <Stop offset="1" stopColor={colors.cloud} stopOpacity={0} />
           </LinearGradient>
         </Defs>
-        <G fill={`url(#${id})`}>
-          {SHAPES[shape].map(([cx, cy, r], i) => (
-            <Circle key={i} cx={cx * s} cy={cy * s} r={r * s} />
-          ))}
-          <Rect x={10 * s} y={30 * s} width={84 * s} height={14 * s} rx={7 * s} />
-        </G>
+        <Path d={d} fill={`url(#${id})`} />
       </Svg>
     </Animated.View>
   );
