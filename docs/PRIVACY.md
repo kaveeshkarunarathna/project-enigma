@@ -29,7 +29,7 @@ journal as text from Settings at any time.
 
 ## Camera and photos
 
-The page scanner reads text from a photo **on your phone**, using Apple's
+The page scanner reads text from a photo **on your phone** (or from your phone's document scanner, which captures the open page the same way), using Apple's
 Vision framework on iOS or Google's ML Kit on Android. The photo is not
 uploaded, not saved to your photo library, and is deleted as soon as the text
 is read. Only the few sentences you choose are kept, as a private quote in

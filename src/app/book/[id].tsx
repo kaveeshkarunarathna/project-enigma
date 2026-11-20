@@ -17,10 +17,12 @@ import { getClassicTextForBook } from '@/data/classics';
 import { useDb } from '@/data/DataProvider';
 import { findClassic } from '@/content/classics';
 import { useLiveQuery } from '@/data/live';
+import { listEntries } from '@/data/journal';
 import { listSessions, type Session } from '@/data/sessions';
 import { bookCaption, formatYear } from '@/features/books/format';
 import { nightTitle, pageSeries } from '@/domain/nights';
 import { bookCompletion, litBeads, ringSize } from '@/domain/progress';
+import { EntryItem } from '@/features/journal/EntryItem';
 import { SessionRow } from '@/features/sessions/SessionRow';
 import { space } from '@/theme/tokens';
 
@@ -79,6 +81,8 @@ export default function BookScreen() {
         />
       ) : null}
 
+      <BookJournal book={book} />
+
       {sessions?.length ? <History book={book} sessions={sessions} /> : null}
 
       <Section title="Shelf">
@@ -130,6 +134,49 @@ export default function BookScreen() {
         </View>
       </Section>
     </Screen>
+  );
+}
+
+const JOURNAL_ROWS = 5;
+
+/** What the reader kept from this book: quotes first-class, plus one-tap ways to add more. */
+function BookJournal({ book }: { book: Book }) {
+  const db = useDb();
+  const [all, setAll] = useState(false);
+  const { data: entries } = useLiveQuery(() => listEntries(db, { bookId: book.id }), ['journal'], [book.id]);
+  const list = entries ?? [];
+  const quotes = list.filter((e) => e.kind === 'quote').length;
+  const shown = all ? list : list.slice(0, JOURNAL_ROWS);
+  return (
+    <Section
+      title={
+        list.length
+          ? `Your journal, ${quotes ? `${quotes} ${quotes === 1 ? 'quote' : 'quotes'}` : `${list.length} ${list.length === 1 ? 'entry' : 'entries'}`}`
+          : 'Your journal'
+      }>
+      <View style={styles.journalLinks}>
+        <TextLink
+          label="Scan a quote from the page"
+          tone="aurora"
+          onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book.id } })}
+        />
+        <TextLink
+          label="Write a note"
+          onPress={() =>
+            router.push({ pathname: '/journal/write', params: { kind: 'note', bookId: book.id } })
+          }
+        />
+      </View>
+      {shown.map((e, i) => (
+        <View key={e.id}>
+          {i > 0 ? <Hairline /> : null}
+          <EntryItem entry={e} />
+        </View>
+      ))}
+      {!all && list.length > JOURNAL_ROWS ? (
+        <TextLink label={`Show all ${list.length}`} onPress={() => setAll(true)} />
+      ) : null}
+    </Section>
   );
 }
 
@@ -278,16 +325,25 @@ function ProgressEditor({ book }: { book: Book }) {
   );
 }
 
-function TextLink({ label, onPress }: { label: string; onPress: () => void }) {
+function TextLink({
+  label,
+  onPress,
+  tone = 'mist',
+}: {
+  label: string;
+  onPress: () => void;
+  tone?: 'mist' | 'aurora';
+}) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.link}>
-      <Text tone="mist">{label}</Text>
+      <Text tone={tone}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   trail: { gap: space.xs, paddingTop: space.md },
+  journalLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg },
   trailEnds: { flexDirection: 'row', justifyContent: 'space-between' },
   hero: { flexDirection: 'row', gap: space.xl, alignItems: 'flex-end' },
   heroText: { flex: 1, gap: space.xs },

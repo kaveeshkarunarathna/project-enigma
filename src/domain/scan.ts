@@ -26,6 +26,18 @@ export function guessPageNumber(lines: string[]): number | null {
 }
 
 /**
+ * The page a scan starts on, when the reader scanned one page or two (a
+ * quote that runs over the page). The first page's own number wins; else
+ * one less than the second page's.
+ */
+export function guessFirstPage(pages: string[][]): number | null {
+  const first = pages[0] ? guessPageNumber(pages[0]) : null;
+  if (first) return first;
+  const second = pages[1] ? guessPageNumber(pages[1]) : null;
+  return second && second > 1 ? second - 1 : null;
+}
+
+/**
  * Joins recognised lines into running text. Page-number lines are dropped,
  * words hyphenated across a line break are joined, and spacing is tidied.
  * Headings in capitals are kept on their own line.

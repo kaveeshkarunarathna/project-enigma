@@ -375,12 +375,18 @@ export async function skyStats(db: Db): Promise<SkyStats> {
   };
 }
 
-/** Every night that has reading, oldest first, for drawing the sky. */
-export async function readingNights(db: Db): Promise<{ night: string; seconds: number }[]> {
-  return db.getAllAsync(
-    `SELECT night, SUM(seconds) AS seconds FROM sessions GROUP BY night HAVING SUM(seconds) > 0 ORDER BY night`,
+/**
+ * Every night that has reading, oldest first, for drawing the sky. `wrote`
+ * marks nights with a journal entry, which glow teal.
+ */
+export async function readingNights(db: Db): Promise<{ night: string; seconds: number; wrote: boolean }[]> {
+  const rows = await db.getAllAsync<{ night: string; seconds: number; wrote: number }>(
+    `SELECT s.night, SUM(s.seconds) AS seconds,
+       EXISTS (SELECT 1 FROM journal_entries j WHERE j.night = s.night) AS wrote
+     FROM sessions s GROUP BY s.night HAVING SUM(s.seconds) > 0 ORDER BY s.night`,
     [],
   );
+  return rows.map((r) => ({ night: r.night, seconds: r.seconds, wrote: !!r.wrote }));
 }
 
 /**

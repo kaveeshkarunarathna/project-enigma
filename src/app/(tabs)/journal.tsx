@@ -7,7 +7,7 @@ import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
 import { Hairline } from '@/components/Hairline';
 import { IconButton } from '@/components/IconButton';
-import { PlusIcon } from '@/components/icons';
+import { PlusIcon, ScanIcon } from '@/components/icons';
 import { Pressable } from '@/components/Pressable';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -20,8 +20,10 @@ import { useLiveQuery } from '@/data/live';
 import { promptFor } from '@/domain/prompts';
 import { useReaderGenre } from '@/features/paths/useReaderGenre';
 import { nightKey } from '@/domain/time';
+import { BookPicker } from '@/features/journal/BookPicker';
 import { EntryItem } from '@/features/journal/EntryItem';
-import { space } from '@/theme/tokens';
+import { useTheme } from '@/theme/theme';
+import { radius, space } from '@/theme/tokens';
 
 const FILTERS: { label: string; kind: EntryKind | null }[] = [
   { label: 'All', kind: null },
@@ -32,16 +34,18 @@ const FILTERS: { label: string; kind: EntryKind | null }[] = [
 
 export default function JournalScreen() {
   const db = useDb();
+  const { colors } = useTheme();
   const [kind, setKind] = useState<EntryKind | null>(null);
   const [search, setSearch] = useState('');
+  const [filterBook, setFilterBook] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const genre = useReaderGenre();
   const prompt = promptFor(nightKey(), genre, offset);
   const { data: book } = useLiveQuery(() => currentBook(db), ['books', 'sessions']);
   const { data: entries, loading } = useLiveQuery(
-    () => listEntries(db, { kind: kind ?? undefined, search }),
+    () => listEntries(db, { kind: kind ?? undefined, search, bookId: filterBook ?? undefined }),
     ['journal', 'books'],
-    [kind, search],
+    [kind, search, filterBook],
   );
   const { data: any } = useLiveQuery(() => listEntries(db, { limit: 1 }), ['journal']);
   const hasAny = !!any?.length;
@@ -51,13 +55,20 @@ export default function JournalScreen() {
       title="Journal"
       caption="What the book made you think. It stays on your phone."
       accessory={
-        <IconButton
-          icon={PlusIcon}
-          label="New note or quote"
-          onPress={() =>
-            router.push({ pathname: '/journal/write', params: { kind: 'note', bookId: book?.id } })
-          }
-        />
+        <View style={styles.accessory}>
+          <IconButton
+            icon={ScanIcon}
+            label="Scan a quote"
+            onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book?.id ?? '' } })}
+          />
+          <IconButton
+            icon={PlusIcon}
+            label="New note or quote"
+            onPress={() =>
+              router.push({ pathname: '/journal/write', params: { kind: 'note', bookId: book?.id } })
+            }
+          />
+        </View>
       }>
       <View style={styles.prompt}>
         <Text variant="caption">Tonight’s question</Text>
@@ -85,6 +96,21 @@ export default function JournalScreen() {
         </View>
       </View>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityHint="Opens the page scanner"
+        haptic={false}
+        onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book?.id ?? '' } })}
+        style={styles.scanRow}>
+        <ScanIcon size={22} weight="light" color={colors.aurora} />
+        <View style={styles.scanText}>
+          <Text tone="aurora">Scan a quote from the page</Text>
+          <Text variant="caption">
+            {book ? `From ${book.title}. ` : ''}Read on your phone, the photo deleted straight away.
+          </Text>
+        </View>
+      </Pressable>
+
       {hasAny ? (
         <View style={styles.tools}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -97,6 +123,7 @@ export default function JournalScreen() {
               />
             ))}
           </ScrollView>
+          <BookPicker value={filterBook} onChange={setFilterBook} noneLabel="All books" />
           <TextField
             value={search}
             onChangeText={setSearch}
@@ -116,7 +143,13 @@ export default function JournalScreen() {
       ) : null}
 
       {hasAny && entries && !entries.length ? (
-        <Text tone="mist">{search ? 'Nothing matches that search.' : 'Nothing here yet.'}</Text>
+        <Text tone="mist">
+          {search
+            ? 'Nothing matches that search.'
+            : filterBook
+              ? 'Nothing written about this book yet.'
+              : 'Nothing here yet.'}
+        </Text>
       ) : null}
 
       <View>
@@ -137,5 +170,14 @@ const styles = StyleSheet.create({
   promptActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg, marginTop: space.md },
   another: { paddingVertical: space.md },
   tools: { gap: space.md },
+  accessory: { flexDirection: 'row' },
+  scanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
+  },
+  scanText: { flex: 1, gap: 2 },
   chips: { gap: space.sm },
 });

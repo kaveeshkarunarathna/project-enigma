@@ -15,7 +15,7 @@ import { layoutSky } from '@/domain/sky';
 import { useTheme } from '@/theme/theme';
 
 type Props = {
-  nights: { night: string; seconds: number }[];
+  nights: { night: string; seconds: number; wrote?: boolean }[];
   width: number;
   height: number;
   goalMinutes: number;
@@ -57,6 +57,18 @@ export function NightSky({ nights, width, height, goalMinutes, breatheNewest = t
             <Circle cx={s.x} cy={s.y} r={s.r * 3} color={colors.candlelight} opacity={s.brightness * 0.18}>
               <BlurMask blur={s.r * 2} style="normal" />
             </Circle>
+            {s.wrote ? (
+              // A night the reader also wrote about wears a faint teal ring.
+              <Circle
+                cx={s.x}
+                cy={s.y}
+                r={s.r + 3.2}
+                style="stroke"
+                strokeWidth={0.9}
+                color={colors.aurora}
+                opacity={0.65}
+              />
+            ) : null}
             <Circle cx={s.x} cy={s.y} r={s.r} color={colors.starlight} opacity={s.brightness} />
           </Group>
         ))}

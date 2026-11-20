@@ -10,9 +10,12 @@ import { space } from '@/theme/tokens';
 export function BookPicker({
   value,
   onChange,
+  noneLabel = 'No book',
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
+  /** The first chip, which stands for no book (or, as a filter, every book). */
+  noneLabel?: string;
 }) {
   const db = useDb();
   const { data: books } = useLiveQuery(() => listBooks(db, ['reading', 'finished', 'paused']), ['books']);
@@ -23,7 +26,7 @@ export function BookPicker({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
       accessibilityRole="radiogroup">
-      <Chip label="No book" selected={value === null} onPress={() => onChange(null)} />
+      <Chip label={noneLabel} selected={value === null} onPress={() => onChange(null)} />
       {books.map((b) => (
         <Chip key={b.id} label={b.title} selected={value === b.id} onPress={() => onChange(b.id)} />
       ))}
