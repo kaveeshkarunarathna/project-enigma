@@ -1,5 +1,12 @@
 /// <reference types="jest" />
-import { guessPageNumber, joinScannedLines, selectedText, splitSentences, tapSentence } from '@/domain/scan';
+import {
+  guessFirstPage,
+  guessPageNumber,
+  joinScannedLines,
+  selectedText,
+  splitSentences,
+  tapSentence,
+} from '@/domain/scan';
 
 const page = [
   'CHAPTER TWO',
@@ -55,5 +62,19 @@ describe('page scanner text', () => {
     expect(tapSentence(sel, 2)).toBeNull();
     expect(selectedText(['A.', 'B.', 'C.'], { start: 1, end: 2 })).toBe('B. C.');
     expect(selectedText(['A.'], null)).toBe('');
+  });
+});
+
+describe('scanning one page or two', () => {
+  it('takes the first page number, or one before the second', () => {
+    expect(guessFirstPage([['Some text', '214']])).toBe(214);
+    expect(guessFirstPage([['Some text without a number'], ['More text', '215']])).toBe(214);
+    expect(guessFirstPage([['no number'], ['none here either']])).toBeNull();
+    expect(guessFirstPage([])).toBeNull();
+  });
+
+  it('joins a sentence that runs over the page break', () => {
+    const lines = [...['the end of a long sen-', '88'], ...['89', 'tence that goes on.']];
+    expect(joinScannedLines(lines)).toBe('the end of a long sentence that goes on.');
   });
 });

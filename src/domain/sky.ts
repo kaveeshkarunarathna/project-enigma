@@ -13,6 +13,8 @@ export type SkyStar = {
   r: number;
   /** 0..1 */
   brightness: number;
+  /** The reader wrote in the journal that night. */
+  wrote: boolean;
 };
 
 /** Small stable hash, so each night gets the same jitter on every launch. */
@@ -32,7 +34,7 @@ export function hash(text: string): number {
  * fills the view instead of huddling in the middle.
  */
 export function layoutSky(
-  nights: { night: string; seconds: number }[],
+  nights: { night: string; seconds: number; wrote?: boolean }[],
   width: number,
   height: number,
   goalMinutes = 10,
@@ -59,6 +61,7 @@ export function layoutSky(
       y: cy + radius * scale * Math.sin(angle),
       r: 1.2 + ratio * 1.1,
       brightness: 0.45 + 0.275 * ratio,
+      wrote: !!n.wrote,
     };
   });
 }

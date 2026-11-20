@@ -1,11 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Pressable } from '@/components/Pressable';
 import { goBack, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
+import { getBook } from '@/data/books';
+import { useDb } from '@/data/DataProvider';
+import { useLiveQuery } from '@/data/live';
 import { checkQuote, QUOTE_HARD_LIMIT_WORDS, QUOTE_SOFT_LIMIT_WORDS } from '@/domain/quotes';
 import {
   guessPageNumber,
@@ -18,7 +21,13 @@ import {
 import { DEV_TOOLS } from '@/features/dev/sampleData';
 import { handOffPassage } from '@/features/scan/handoff';
 import { SAMPLE_SCAN } from '@/features/scan/sample';
-import { ScanError, scannerAvailable, scanPage, type ScanSource } from '@/services/scanner';
+import {
+  documentScannerAvailable,
+  ScanError,
+  scannerAvailable,
+  scanPage,
+  type ScanSource,
+} from '@/services/scanner';
 import { useTheme } from '@/theme/theme';
 import { radius, space } from '@/theme/tokens';
 
@@ -26,6 +35,8 @@ type Params = {
   /** "write" when opened from the quote editor, which takes the passage back. */
   from?: string;
   bookId?: string;
+  /** "1" opens the page scanner straight away, for one-tap "Scan a quote". */
+  auto?: string;
   /** Dev only: show a sample page, to try the picker in Expo Go or on the web. */
   demo?: string;
 };
@@ -35,8 +46,8 @@ type Phase =
   | { name: 'reading' }
   | { name: 'pick'; sentences: string[]; page: number | null };
 
-function fromLines(lines: string[]): Phase {
-  return { name: 'pick', sentences: splitSentences(joinScannedLines(lines)), page: guessPageNumber(lines) };
+function fromLines(lines: string[], page: number | null = guessPageNumber(lines)): Phase {
+  return { name: 'pick', sentences: splitSentences(joinScannedLines(lines)), page };
 }
 
 /**
@@ -46,18 +57,25 @@ function fromLines(lines: string[]): Phase {
  */
 export default function ScanScreen() {
   const params = useLocalSearchParams<Params>();
+  const db = useDb();
+  const { data: book } = useLiveQuery(
+    () => (params.bookId ? getBook(db, params.bookId) : Promise.resolve(null)),
+    ['books'],
+    [params.bookId],
+  );
   const [phase, setPhase] = useState<Phase>(() =>
     DEV_TOOLS && params.demo ? fromLines(SAMPLE_SCAN) : { name: 'start' },
   );
   const [sel, setSel] = useState<Selection>(null);
   const available = scannerAvailable();
+  const documents = documentScannerAvailable();
 
   async function scan(source: ScanSource) {
     setPhase({ name: 'reading' });
     setSel(null);
     try {
-      const lines = await scanPage(source);
-      setPhase(lines ? fromLines(lines) : { name: 'start' });
+      const scanned = await scanPage(source);
+      setPhase(scanned ? fromLines(scanned.lines, scanned.page) : { name: 'start' });
     } catch (e) {
       setPhase({
         name: 'start',
@@ -66,7 +84,18 @@ export default function ScanScreen() {
     }
   }
 
-  function use(text: string, page: number | null) {
+  // One-tap "Scan a quote": open the scanner as soon as the screen appears.
+  const launched = useRef(false);
+  useEffect(() => {
+    if (params.auto !== '1' || launched.current || !available) return;
+    launched.current = true;
+    const t = setTimeout(() => scan(documents ? 'book' : 'camera'), 300);
+    return () => clearTimeout(t);
+  }, [params.auto, available, documents]);
+
+  function use(text: string, scannedPage: number | null) {
+    // A printed page number wins; else where the reader is in the book.
+    const page = scannedPage ?? (book?.currentPage || null);
     if (params.from === 'write') {
       handOffPassage({ quote: text, page });
       goBack();
@@ -99,7 +128,13 @@ export default function ScanScreen() {
       <Screen
         back
         title="Choose the lines"
-        caption="Tap a sentence, then another to take in the ones between.">
+        caption={`Tap a sentence, then another to take in the ones between.${
+          book
+            ? ` From ${book.title}${phase.page ? `, page ${phase.page}` : ''}.`
+            : phase.page
+              ? ` Page ${phase.page}.`
+              : ''
+        }`}>
         <View style={styles.sentences}>
           {phase.sentences.map((s, i) => (
             <Sentence
@@ -131,9 +166,13 @@ export default function ScanScreen() {
       title="Scan a page"
       caption="The text is read on your phone. The photo is deleted straight away.">
       <View style={styles.body}>
+        {book ? <Text variant="heading">{book.title}</Text> : null}
         <Text tone="mist">
-          Lay the page flat in good light. After the scan, you choose a few sentences to keep, up to about{' '}
-          {QUOTE_SOFT_LIMIT_WORDS} words. The rest of the page is not kept.
+          {documents
+            ? 'Hold the phone over the open book. The scanner finds the page and flattens it. If your quote runs onto the next page, scan both.'
+            : 'Lay the page flat in good light.'}{' '}
+          Then choose a few sentences to keep, up to about {QUOTE_SOFT_LIMIT_WORDS} words. The rest of the
+          page is not kept.
         </Text>
         {!available ? (
           <Text tone="aurora">
@@ -149,7 +188,11 @@ export default function ScanScreen() {
         </View>
       ) : available ? (
         <View style={styles.actions}>
-          <Button label="Take a photo" onPress={() => scan('camera')} />
+          {documents ? (
+            <Button label="Scan the page" onPress={() => scan('book')} />
+          ) : (
+            <Button label="Take a photo" onPress={() => scan('camera')} />
+          )}
           <Button kind="quiet" label="Choose a photo" onPress={() => scan('library')} />
         </View>
       ) : (

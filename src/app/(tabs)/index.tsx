@@ -58,7 +58,9 @@ export default function SkyScreen() {
       title="Your sky"
       caption={
         count
-          ? `${count} ${count === 1 ? 'star' : 'stars'}, one for every night you read. Tap one to see its night.`
+          ? `${count} ${count === 1 ? 'star' : 'stars'}, one for every night you read.${
+              nights?.some((n) => n.wrote) ? ' Teal rings are nights you wrote about.' : ''
+            } Tap one to see its night.`
           : 'Every night you read adds a star. Nothing here ever goes dark.'
       }
       accessory={
@@ -215,6 +217,14 @@ function InHand({ book, pace }: { book: Book; pace: Pace }) {
           />
         </View>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityHint="Opens the page scanner"
+        haptic={false}
+        onPress={() => router.push({ pathname: '/scan', params: { auto: '1', bookId: book.id } })}
+        style={styles.quoteLink}>
+        <Text tone="mist">A line worth keeping? Scan it from the page</Text>
+      </Pressable>
     </View>
   );
 }
@@ -314,4 +324,5 @@ const styles = StyleSheet.create({
   allTime: { justifyContent: 'space-between', paddingTop: space.md },
   stat: { gap: 2, flexShrink: 1 },
   backup: { paddingVertical: space.md },
+  quoteLink: { alignSelf: 'center', paddingVertical: space.xs },
 });

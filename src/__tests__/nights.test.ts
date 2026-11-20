@@ -1,7 +1,14 @@
 /// <reference types="jest" />
 import { addBook, getBook } from '@/data/books';
 import { addEntry, listEntries } from '@/data/journal';
-import { deleteSession, getSession, logSession, nightSessions, updateSession } from '@/data/sessions';
+import {
+  deleteSession,
+  getSession,
+  logSession,
+  nightSessions,
+  readingNights,
+  updateSession,
+} from '@/data/sessions';
 import {
   clockTime,
   nearestStar,
@@ -127,5 +134,19 @@ describe('fixing sessions', () => {
     await addEntry(db, { kind: 'reflection', body: 'Other night.', at: at(17, 22) });
     const list = await listEntries(db, { night: '2026-11-19' });
     expect(list.map((e) => e.body)).toEqual(['Enough.']);
+  });
+});
+
+describe('nights you wrote about', () => {
+  it('marks reading nights that have a journal entry', async () => {
+    const db = await createTestDb();
+    const at = (day: number, h: number) => new Date(2026, 10, day, h);
+    await logSession(db, { bookId: null, startedAt: at(18, 21), endedAt: at(18, 22), seconds: 600 });
+    await logSession(db, { bookId: null, startedAt: at(19, 21), endedAt: at(19, 22), seconds: 600 });
+    await addEntry(db, { kind: 'quote', body: '', quoteText: 'A line.', at: at(19, 22) });
+    expect(await readingNights(db)).toEqual([
+      { night: '2026-11-18', seconds: 600, wrote: false },
+      { night: '2026-11-19', seconds: 600, wrote: true },
+    ]);
   });
 });
