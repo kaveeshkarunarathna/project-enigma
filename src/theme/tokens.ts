@@ -98,6 +98,20 @@ export const motion = {
   press: { damping: 18, stiffness: 260, mass: 0.6 },
   pressScale: 0.97,
   fade: 240,
+  /** A screen's content rising into place as it opens. */
+  enter: 460,
+  /** How far content rises, in points. Small on purpose. */
+  rise: 10,
+  /** Gap between the header and the body settling in. */
+  stagger: 90,
+  /** Selection changes: chips, sentences, toggles. */
+  select: 180,
+  /** Numbers counting up to a new value. */
+  count: 700,
+  /** Lines and rings drawing themselves in. */
+  draw: 1200,
   /** Ambient loops are slow and never flash. */
   ambientMs: 45_000,
+  /** One full twinkle cycle for the whole sky; each star twinkles a few times in it. */
+  twinkleMs: 60_000,
 } as const;

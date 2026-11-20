@@ -14,6 +14,7 @@ import { checkQuote, QUOTE_HARD_LIMIT_WORDS, QUOTE_SOFT_LIMIT_WORDS } from '@/do
 import { BookPicker } from '@/features/journal/BookPicker';
 import { takePassage } from '@/features/scan/handoff';
 import { Pressable } from '@/components/Pressable';
+import { whisper } from '@/components/motion/Whisper';
 import { space } from '@/theme/tokens';
 
 type Params = {
@@ -77,6 +78,7 @@ export default function WriteScreen() {
         quotePage: kind === 'quote' && n > 0 ? n : null,
         quoteSource: kind === 'quote' ? source : null,
       });
+      whisper(kind === 'quote' ? 'The line is kept in your journal' : 'Kept in your journal');
       if (router.canGoBack()) goBack();
       else router.replace('/journal');
     } catch (e) {

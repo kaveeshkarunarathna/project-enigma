@@ -8,6 +8,7 @@ import { Pressable } from '@/components/Pressable';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { Text } from '@/components/Text';
+import { whisper } from '@/components/motion/Whisper';
 import { lastBackupAt, makeBackup, markBackedUp } from '@/data/backup';
 import { useDb } from '@/data/DataProvider';
 import { listEntries } from '@/data/journal';
@@ -53,7 +54,10 @@ export default function SettingsScreen() {
   async function saveBackup() {
     setBackupNote(null);
     try {
-      if (await shareBackup(await makeBackup(db))) await markBackedUp(db);
+      if (await shareBackup(await makeBackup(db))) {
+        await markBackedUp(db);
+        whisper('A copy of your sky is saved');
+      }
     } catch {
       setBackupNote('The backup could not be made. Please try again.');
     }

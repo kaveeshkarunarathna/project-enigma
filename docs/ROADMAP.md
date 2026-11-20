@@ -19,6 +19,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 13 | Tap a star to open its night, fix sessions, each book's reading history | Done |
 | 14 | Backup to a file you keep, and restore on a new phone | Done |
 | 15 | Quotes straight from the book: document scanner, one-tap scan, each book's journal | Done |
+| 16 | Calm motion: a living sky, screens that settle, progress you can see grow, quiet confirmations | Done |
 
 ## Later
 

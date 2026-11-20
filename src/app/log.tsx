@@ -7,6 +7,7 @@ import { Chip } from '@/components/Chip';
 import { PageStepper } from '@/components/PageStepper';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
+import { whisper } from '@/components/motion/Whisper';
 import { currentBook, getBook, setBookStatus } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
@@ -70,6 +71,7 @@ export default function LogScreen() {
         await setBookStatus(db, book.id, 'finished');
         router.replace({ pathname: '/ignite', params: { bookId: book.id } });
       } else {
+        whisper(when === 'tonight' ? "Tonight's star is in your sky" : "Last night's star is in your sky");
         router.back();
       }
     } finally {

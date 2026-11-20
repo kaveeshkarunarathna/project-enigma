@@ -1,6 +1,8 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { BooksIcon, FeatherIcon, PathIcon, StarIcon, type Icon } from './icons';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Pressable } from './Pressable';
 import { Text } from './Text';
@@ -19,7 +21,21 @@ const TABS: Record<string, { label: string; icon: Icon }> = {
  * Phosphor light icons, starlight for the active tab and mist for the rest.
  */
 export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
-  const { colors } = useTheme();
+  const { colors, reduceMotion } = useTheme();
+  // A small light glides under the active tab.
+  const [slots, setSlots] = useState<Record<number, { x: number; w: number }>>({});
+  const x = useSharedValue(-1);
+  const active = slots[state.index];
+  useEffect(() => {
+    if (!active) return;
+    const target = active.x + active.w / 2 - 2;
+    if (reduceMotion || x.get() < 0) x.set(target);
+    else x.set(withSpring(target, { damping: 20, stiffness: 180, mass: 0.8 }));
+  }, [active, reduceMotion, x]);
+  const indicator = useAnimatedStyle(() => ({
+    opacity: x.get() < 0 ? 0 : 1,
+    transform: [{ translateX: x.get() }],
+  }));
 
   return (
     <View
@@ -28,6 +44,10 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
       <View
         accessibilityRole="tablist"
         style={[styles.bar, { backgroundColor: colors.raised, borderColor: colors.hairline }]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.indicator, { backgroundColor: colors.starlight }, indicator]}
+        />
         {state.routes.map((route, i) => {
           const tab = TABS[route.name];
           if (!tab) return null;
@@ -41,6 +61,12 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
               accessibilityState={{ selected: active }}
               onPress={() => {
                 if (!active) navigateToTab(route.key);
+              }}
+              onLayout={(e) => {
+                const { x: lx, width } = e.nativeEvent.layout;
+                setSlots((s) =>
+                  s[i]?.x === lx && s[i]?.w === width ? s : { ...s, [i]: { x: lx, w: width } },
+                );
               }}
               style={styles.tab}>
               <Icon
@@ -83,4 +109,5 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: { fontSize: 11, lineHeight: 14, fontStyle: 'normal' },
+  indicator: { position: 'absolute', top: 5, left: 0, width: 4, height: 4, borderRadius: 2 },
 });

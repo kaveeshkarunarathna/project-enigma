@@ -45,6 +45,14 @@ Captions are sentence case and italic, never all-caps labels.
 - Ambient loops last 45 seconds or more and never flash.
 - Celebrations are kept for a finished book and a full moon.
 - With Reduce Motion on, every animation becomes instant.
+- Every timing lives in `motion` in `src/theme/tokens.ts`; components never
+  invent their own durations.
+- A screen settles as one piece: the title rises, the body follows a beat
+  later. Never card by card.
+- Motion confirms or explains: a line drawing in shows progress, beads light
+  in the order they were earned, numbers count to what changed.
+- Saving something says so once, quietly: a whisper at the bottom of the
+  screen with a success haptic. Nothing to dismiss.
 
 ## Writing
 
