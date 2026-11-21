@@ -1,5 +1,5 @@
 /**
- * Progress rules for Night Atlas. Pure functions, so they are easy to test
+ * Progress rules for Stellibria. Pure functions, so they are easy to test
  * and the same numbers show everywhere.
  *
  * Reward rhythm:

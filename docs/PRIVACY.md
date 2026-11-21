@@ -1,9 +1,9 @@
-# Night Atlas privacy policy (draft)
+# Stellibria privacy policy (draft)
 
 _Draft for the Google Play and App Store listings. Kaveesh should review it,
 add a contact email, and publish it at a public URL before release._
 
-**Short version:** Night Atlas keeps your reading life on your phone. There is
+**Short version:** Stellibria keeps your reading life on your phone. There is
 no account, no tracking, no ads and no AI. We never see your journal.
 
 ## What stays on your phone
@@ -46,6 +46,14 @@ share sheet. You choose where it goes. The app does not upload it, and it
 holds your books, reading nights, paths, journal and settings, so keep it
 somewhere you trust. Restoring reads a file you pick and stays on the phone.
 
+## Sharing your sky
+
+The sky card is a picture the app draws on your phone: your stars, a few
+numbers (nights, pages, books finished or time read) and, only if you turn
+them on, up to three book titles. It never shows journal entries, quotes,
+notes or reflections. The image goes only where you send it from the share
+sheet; the app uploads nothing.
+
 ## Notifications
 
 If you turn on the evening reminder, the app schedules notifications on your
@@ -53,7 +61,7 @@ phone. No push service or server is involved.
 
 ## Children
 
-Night Atlas does not collect personal information from anyone, including
+Stellibria does not collect personal information from anyone, including
 children.
 
 ## Changes

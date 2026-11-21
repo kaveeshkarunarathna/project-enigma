@@ -56,7 +56,7 @@ async function planAgain(db: Db) {
   const readTonight = (await listSessions(db, { night: nightKey(), limit: 1 })).length > 0;
   for (const r of planReminders(new Date(), reminderTime, { readTonight })) {
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Night Atlas', body: r.body, sound: false },
+      content: { title: 'Stellibria', body: r.body, sound: false },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.date, channelId: CHANNEL },
     });
   }

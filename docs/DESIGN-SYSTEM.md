@@ -1,4 +1,4 @@
-# Design system: Night Atlas, Whimsical Night
+# Design system: Stellibria, Whimsical Night
 
 Source of truth: `src/theme/tokens.ts`. Phase 17 restyled the app after a
 storybook night illustration: an indigo sky fading to a plum floor, tiny

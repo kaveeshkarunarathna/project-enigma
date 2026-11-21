@@ -5,7 +5,9 @@
  * can be tested without a database.
  */
 
-export const BACKUP_APP = 'night-atlas';
+export const BACKUP_APP = 'stellibria';
+/** Backups made before the app was named Stellibria. Still restored. */
+export const LEGACY_BACKUP_APPS: readonly string[] = ['night-atlas'];
 export const BACKUP_FORMAT = 1;
 
 /**
@@ -46,7 +48,7 @@ export type BackupSummary = {
 
 export type ParseResult = { ok: true; backup: Backup } | { ok: false; reason: string };
 
-const NOT_A_BACKUP = 'This file is not a Night Atlas backup.';
+const NOT_A_BACKUP = 'This file is not a Stellibria backup.';
 
 /** Reads a backup file's text and checks it is whole before anything is replaced. */
 export function parseBackup(text: string, currentSchema: number): ParseResult {
@@ -56,17 +58,17 @@ export function parseBackup(text: string, currentSchema: number): ParseResult {
   } catch {
     return { ok: false, reason: NOT_A_BACKUP };
   }
-  if (!isObject(data) || data.app !== BACKUP_APP) return { ok: false, reason: NOT_A_BACKUP };
+  if (!isObject(data) || !isOurApp(data.app)) return { ok: false, reason: NOT_A_BACKUP };
   if (typeof data.format !== 'number' || data.format > BACKUP_FORMAT) {
     return {
       ok: false,
-      reason: 'This backup was made by a newer Night Atlas. Update the app, then try again.',
+      reason: 'This backup was made by a newer Stellibria. Update the app, then try again.',
     };
   }
   if (typeof data.schema !== 'number' || data.schema > currentSchema) {
     return {
       ok: false,
-      reason: 'This backup was made by a newer Night Atlas. Update the app, then try again.',
+      reason: 'This backup was made by a newer Stellibria. Update the app, then try again.',
     };
   }
   if (!isObject(data.tables)) return { ok: false, reason: NOT_A_BACKUP };
@@ -88,6 +90,10 @@ export function parseBackup(text: string, currentSchema: number): ParseResult {
       tables,
     },
   };
+}
+
+function isOurApp(app: unknown): boolean {
+  return app === BACKUP_APP || (typeof app === 'string' && LEGACY_BACKUP_APPS.includes(app));
 }
 
 /** What a backup holds, so the reader can see it before restoring. */
@@ -116,10 +122,10 @@ export function describeSummary(s: BackupSummary): string {
   return parts.length ? parts.join(', ') : 'Nothing yet';
 }
 
-/** A file name that sorts by date: night-atlas-2026-11-20.json */
+/** A file name that sorts by date: stellibria-2026-11-20.json */
 export function backupFileName(at: Date): string {
   const p = (n: number) => (n < 10 ? `0${n}` : String(n));
-  return `night-atlas-${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())}.json`;
+  return `stellibria-${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())}.json`;
 }
 
 /** Days since the last backup, or null if there has never been one. */

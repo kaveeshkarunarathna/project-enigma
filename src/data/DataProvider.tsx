@@ -4,6 +4,10 @@ import type { ReactNode } from 'react';
 import type { Db } from './db';
 import { migrate } from './migrations';
 
+/**
+ * Kept from the app's working name (Night Atlas) on purpose: renaming the file
+ * would leave readers' existing data behind. Readers never see it.
+ */
 export const DATABASE_NAME = 'night-atlas.db';
 
 /** Extra setup that runs once after migrations, such as installing curated paths. */

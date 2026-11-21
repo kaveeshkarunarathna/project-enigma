@@ -43,7 +43,7 @@ export default function SettingsScreen() {
       setReminderNote(
         Platform.OS === 'web'
           ? 'Reminders work in the phone app.'
-          : 'Notifications are off for Night Atlas. You can allow them in your phone’s Settings.',
+          : 'Notifications are off for Stellibria. You can allow them in your phone’s Settings.',
       );
       return;
     }
@@ -65,7 +65,7 @@ export default function SettingsScreen() {
 
   async function exportJournal() {
     const entries = await listEntries(db, { limit: 100000 });
-    await Share.share({ title: 'Night Atlas journal', message: journalAsText(entries) });
+    await Share.share({ title: 'Stellibria journal', message: journalAsText(entries) });
   }
 
   return (
@@ -129,7 +129,7 @@ export default function SettingsScreen() {
 
       <Section title="About">
         <Text tone="mist" style={styles.note}>
-          Night Atlas {Constants.expoConfig?.version ?? ''}. Book facts and covers come from the Open Library
+          Stellibria {Constants.expoConfig?.version ?? ''}. Book facts and covers come from the Open Library
           catalog. Questions and path notes are written by Kaveesh. Pages you scan are read on your phone, and
           the photo is deleted straight away.
         </Text>

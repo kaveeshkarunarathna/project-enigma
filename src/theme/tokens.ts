@@ -1,5 +1,5 @@
 /**
- * Night Atlas design tokens, "Whimsical Night" look.
+ * Stellibria design tokens, "Whimsical Night" look.
  *
  * A storybook night: an indigo sky fading to a plum floor, tiny stars, a
  * flat sand-coloured moon and soft plum clouds, all drawn as vectors. Titles

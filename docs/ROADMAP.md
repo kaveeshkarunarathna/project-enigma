@@ -21,6 +21,8 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 15 | Quotes straight from the book: document scanner, one-tap scan, each book's journal | Done |
 | 16 | Calm motion: a living sky, screens that settle, progress you can see grow, quiet confirmations | Done |
 | 17 | Whimsical Night: storybook sky, moon and clouds drawn in code, tracked Lato titles | Done |
+| 18 | Sky card: share a picture of your sky (story or square) through the share sheet | Done |
+| 19 | The app is named Stellibria: app name, IDs, share card wordmark, store listing | Done |
 
 ## Later
 

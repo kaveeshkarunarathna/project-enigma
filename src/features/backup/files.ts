@@ -34,7 +34,7 @@ export async function shareBackup(backup: Backup): Promise<boolean> {
     await Sharing.shareAsync(file.uri, {
       mimeType: 'application/json',
       UTI: 'public.json',
-      dialogTitle: 'Keep your Night Atlas backup',
+      dialogTitle: 'Keep your Stellibria backup',
     });
     return true;
   } finally {

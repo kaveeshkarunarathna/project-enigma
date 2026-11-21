@@ -1,4 +1,4 @@
-"""Draws the Night Atlas mark: a softly shaded star (sphere) with a tilted orbit ring and one bead."""
+"""Draws the Stellibria mark: a softly shaded star (sphere) with a tilted orbit ring and one bead."""
 # Usage: python3 scripts/make-icons.py assets/images   (needs Pillow)
 import math, sys
 from PIL import Image, ImageChops, ImageDraw, ImageFilter

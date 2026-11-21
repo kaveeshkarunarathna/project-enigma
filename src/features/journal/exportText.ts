@@ -7,7 +7,7 @@ import type { JournalEntry } from '@/data/journal';
  * and handed to the system share sheet; the app never sends it anywhere.
  */
 export function journalAsText(entries: JournalEntry[], exportedOn = new Date()): string {
-  const lines = [`Night Atlas journal, exported ${exportedOn.toDateString()}`, ''];
+  const lines = [`Stellibria journal, exported ${exportedOn.toDateString()}`, ''];
   const sorted = [...entries].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const e of sorted) {
     lines.push(`## ${e.createdAt.slice(0, 10)}${e.bookTitle ? `, ${e.bookTitle}` : ''}`);

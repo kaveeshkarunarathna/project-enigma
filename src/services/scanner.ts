@@ -109,7 +109,7 @@ async function photo(source: 'camera' | 'library'): Promise<string[] | null> {
     if (source === 'camera') throw cameraRefused();
     throw new ScanError(
       'permission',
-      'Night Atlas needs access to your photos to read a page. You can allow it in Settings.',
+      'Stellibria needs access to your photos to read a page. You can allow it in Settings.',
     );
   }
   const options: ImagePicker.ImagePickerOptions = {
@@ -129,7 +129,7 @@ async function photo(source: 'camera' | 'library'): Promise<string[] | null> {
 function cameraRefused() {
   return new ScanError(
     'permission',
-    'Night Atlas needs the camera to read a page. You can allow it in Settings.',
+    'Stellibria needs the camera to read a page. You can allow it in Settings.',
   );
 }
 

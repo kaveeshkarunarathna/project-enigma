@@ -66,7 +66,7 @@ export default function RestoreScreen() {
         <View style={styles.block}>
           {state.name === 'error' ? <Text tone="aurora">{state.message}</Text> : null}
           <Text tone="mist">
-            Choose a file named like night-atlas-2026-11-20.json, from Files, Drive or wherever you kept it.
+            Choose a file named like stellibria-2026-11-20.json, from Files, Drive or wherever you kept it.
           </Text>
           <View style={styles.actions}>
             <Button label="Choose the backup file" onPress={choose} disabled={state.name === 'reading'} />
