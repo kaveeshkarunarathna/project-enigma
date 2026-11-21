@@ -12,7 +12,7 @@ type Props = {
 };
 
 /**
- * The minimal Night Atlas background: a flat night with sparse, faint stars.
+ * The minimal Stellibria background: a flat night with sparse, faint stars.
  * Static by design. Ambient motion is added per screen, never here.
  */
 export function StarField({ density = 9, seed = 7 }: Props) {

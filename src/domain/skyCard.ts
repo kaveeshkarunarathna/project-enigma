@@ -9,7 +9,7 @@ export type CardShape = 'story' | 'square';
 export type CardPeriod = 'month' | 'all';
 
 /** The name printed small at the foot of the card. One place to change it. */
-export const CARD_WORDMARK = 'Orrery';
+export const CARD_WORDMARK = 'Stellibria';
 
 /** Logical size of each shape. Story is 9:16 (Instagram and TikTok stories), square is 1:1. */
 export const CARD_SIZE: Record<CardShape, { width: number; height: number }> = {

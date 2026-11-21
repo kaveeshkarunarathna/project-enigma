@@ -33,8 +33,8 @@ the foot, and wide-tracked capitals. Then:
 - Up to three numbers: nights read, pages (if any were logged), and books
   finished in the period (or time read when no book was finished).
 - Book titles, only if turned on.
-- The wordmark, `CARD_WORDMARK` in `src/domain/skyCard.ts` (currently
-  "Orrery"; one line to change if the store name changes).
+- The wordmark, `CARD_WORDMARK` in `src/domain/skyCard.ts` (now
+  "Stellibria", see [phase 19](19-stellibria.md)).
 
 Journal entries, quotes, notes, reflections, and the teal "you wrote that
 night" rings never appear on the card.

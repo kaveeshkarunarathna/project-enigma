@@ -1,9 +1,9 @@
-# Night Atlas privacy policy (draft)
+# Stellibria privacy policy (draft)
 
 _Draft for the Google Play and App Store listings. Kaveesh should review it,
 add a contact email, and publish it at a public URL before release._
 
-**Short version:** Night Atlas keeps your reading life on your phone. There is
+**Short version:** Stellibria keeps your reading life on your phone. There is
 no account, no tracking, no ads and no AI. We never see your journal.
 
 ## What stays on your phone
@@ -61,7 +61,7 @@ phone. No push service or server is involved.
 
 ## Children
 
-Night Atlas does not collect personal information from anyone, including
+Stellibria does not collect personal information from anyone, including
 children.
 
 ## Changes

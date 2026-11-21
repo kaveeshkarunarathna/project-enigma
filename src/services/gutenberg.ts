@@ -6,7 +6,7 @@ import { parseGutenberg, titleMatches, type ParsedBook } from '@/domain/gutenber
  * for it. One plain-text file per book, fetched once and then kept on the
  * phone, so it is light on their servers. Nothing is sent but the request.
  */
-const USER_AGENT = 'NightAtlas/0.1 (reading companion app)';
+const USER_AGENT = 'Stellibria/0.1 (reading companion app)';
 
 export function gutenbergTextUrl(id: number): string {
   return `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`;
