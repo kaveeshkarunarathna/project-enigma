@@ -94,19 +94,25 @@ describe('backup files', () => {
   });
 
   it('refuses files that are not whole backups', () => {
-    expect(parseBackup('hello', 3)).toEqual({ ok: false, reason: 'This file is not a Night Atlas backup.' });
+    expect(parseBackup('hello', 3)).toEqual({ ok: false, reason: 'This file is not a Stellibria backup.' });
     expect(parseBackup(JSON.stringify({ app: 'other' }), 3).ok).toBe(false);
-    const newer = parseBackup(JSON.stringify({ app: 'night-atlas', format: 1, schema: 99, tables: {} }), 3);
-    expect(newer.ok || newer.reason).toMatch(/newer Night Atlas/);
+    const newer = parseBackup(JSON.stringify({ app: 'stellibria', format: 1, schema: 99, tables: {} }), 3);
+    expect(newer.ok || newer.reason).toMatch(/newer Stellibria/);
     const damaged = parseBackup(
-      JSON.stringify({ app: 'night-atlas', format: 1, schema: 3, tables: { books: [{ title: { x: 1 } }] } }),
+      JSON.stringify({ app: 'stellibria', format: 1, schema: 3, tables: { books: [{ title: { x: 1 } }] } }),
       3,
     );
     expect(damaged.ok || damaged.reason).toMatch(/damaged/);
     // Missing tables are simply empty.
-    expect(parseBackup(JSON.stringify({ app: 'night-atlas', format: 1, schema: 3, tables: {} }), 3).ok).toBe(
+    expect(parseBackup(JSON.stringify({ app: 'stellibria', format: 1, schema: 3, tables: {} }), 3).ok).toBe(
       true,
     );
+  });
+
+  it('still restores backups made under the old name, Night Atlas', () => {
+    const old = parseBackup(JSON.stringify({ app: 'night-atlas', format: 1, schema: 3, tables: {} }), 3);
+    expect(old.ok).toBe(true);
+    expect(old.ok && old.backup.app).toBe('stellibria');
   });
 
   it('describes what a backup holds', async () => {
@@ -120,7 +126,7 @@ describe('backup files', () => {
   });
 
   it('names files by date and suggests a backup gently', () => {
-    expect(backupFileName(new Date(2026, 0, 5))).toBe('night-atlas-2026-01-05.json');
+    expect(backupFileName(new Date(2026, 0, 5))).toBe('stellibria-2026-01-05.json');
     const now = new Date(2026, 10, 20, 12);
     expect(daysSinceBackup(null, now)).toBeNull();
     expect(daysSinceBackup(new Date(2026, 10, 10, 12).toISOString(), now)).toBe(10);

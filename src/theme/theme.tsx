@@ -19,7 +19,7 @@ export function ThemeProvider({
   preference = 'night',
   children,
 }: {
-  /** Night Atlas is a night app, so night is the default even in light mode. */
+  /** Stellibria is a night app, so night is the default even in light mode. */
   preference?: SchemePreference;
   children: ReactNode;
 }) {

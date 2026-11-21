@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "Night Atlas",
-    "slug": "project-enigma",
+    "name": "Stellibria",
+    "slug": "stellibria",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nightatlas",
+    "scheme": "stellibria",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0C1322",
     "ios": {
-      "bundleIdentifier": "com.kaveeshkarunarathna.enigma",
+      "bundleIdentifier": "com.stellibria.app",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.kaveeshkarunarathna.enigma",
+      "package": "com.stellibria.app",
       "adaptiveIcon": {
         "backgroundColor": "#0C1322",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,8 +41,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Night Atlas reads the text of a page you choose, on your phone, so you can quote a few lines in your journal. The photo is not kept.",
-          "cameraPermission": "Night Atlas reads the text of a page you photograph, on your phone, so you can quote a few lines in your journal. The photo is not kept.",
+          "photosPermission": "Stellibria reads the text of a page you choose, on your phone, so you can quote a few lines in your journal. The photo is not kept.",
+          "cameraPermission": "Stellibria reads the text of a page you photograph, on your phone, so you can quote a few lines in your journal. The photo is not kept.",
           "microphonePermission": false
         }
       ],
@@ -56,7 +56,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Night Atlas uses the camera to read the barcode on a book, so it can find your edition. Nothing is photographed or kept.",
+          "cameraPermission": "Stellibria uses the camera to read the barcode on a book, so it can find your edition. Nothing is photographed or kept.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }

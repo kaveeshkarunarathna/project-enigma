@@ -52,7 +52,7 @@ import { space } from '@/theme/tokens';
 
 const LAMP_KEY = 'lamp';
 const LIGHT_TURN_MS = 14_000;
-const KEEP_AWAKE_TAG = 'night-atlas-lamp';
+const KEEP_AWAKE_TAG = 'stellibria-lamp';
 
 /**
  * The Lamp. Pick a length (or Open), and a light circles the book's star while

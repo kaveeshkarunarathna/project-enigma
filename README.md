@@ -1,4 +1,6 @@
-# Night Atlas (codename: project-enigma)
+# Stellibria (codename: project-enigma)
+
+_Pronounced stel-LEE-brah. Earlier working names: Night Atlas, Orrery._
 
 A calm reading companion that helps new readers fall in love with reading,
 journaling and thinking, with a focus on philosophy, classics, fantasy and
@@ -60,3 +62,4 @@ npm test           # unit tests (from phase 2)
 - [Feature notes](docs/features/): one page per shipped phase
 - [Roadmap](docs/ROADMAP.md): what is built and what comes next
 - [Privacy policy draft](docs/PRIVACY.md): what stays on the phone and what does not
+- [Store listing draft](docs/STORE-LISTING.md): Play Store and App Store text

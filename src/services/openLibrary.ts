@@ -9,7 +9,7 @@
 import { pagesFromPagination } from '@/domain/isbn';
 
 export const OPEN_LIBRARY = 'https://openlibrary.org';
-const USER_AGENT = 'NightAtlas/0.1 (reading companion app)';
+const USER_AGENT = 'Stellibria/0.1 (reading companion app)';
 const FIELDS = 'key,title,author_name,cover_i,first_publish_year,number_of_pages_median,edition_count';
 
 export type CatalogBook = {

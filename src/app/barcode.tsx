@@ -121,7 +121,7 @@ export default function BarcodeScreen() {
                       name: 'error',
                       isbn: '',
                       message:
-                        'The camera is off for Night Atlas. You can allow it in Settings, or type the ISBN.',
+                        'The camera is off for Stellibria. You can allow it in Settings, or type the ISBN.',
                     });
                   }
                 }}
