@@ -4,6 +4,7 @@ import { notifyChanged } from './live';
 import { getSettings } from './settings';
 import type { NightRecord } from '@/domain/moonlog';
 import type { PaceSession } from '@/domain/pace';
+import type { CardSession } from '@/domain/skyCard';
 import { litBeads, sessionStardust, STARDUST_PER_BEAD, STARDUST_PER_MINUTE } from '@/domain/progress';
 import { nightKey } from '@/domain/time';
 
@@ -399,5 +400,19 @@ export async function paceSessions(db: Db, from: string): Promise<PaceSession[]>
        CASE WHEN page_to IS NULL THEN 0 ELSE MAX(0, page_to - COALESCE(page_from, 0)) END AS pages
      FROM sessions WHERE night >= ? ORDER BY night`,
     [from],
+  );
+}
+
+/**
+ * Sessions for the shareable sky card: night, time, pages and book only.
+ * Notes and journal text are never read here. `from` is a night key, or null
+ * for every session.
+ */
+export async function cardSessions(db: Db, from: string | null): Promise<CardSession[]> {
+  return db.getAllAsync<CardSession>(
+    `SELECT night, seconds, book_id AS bookId,
+       CASE WHEN page_to IS NULL THEN 0 ELSE MAX(0, page_to - COALESCE(page_from, 0)) END AS pages
+     FROM sessions WHERE night >= ? ORDER BY night`,
+    [from ?? ''],
   );
 }

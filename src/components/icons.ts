@@ -15,6 +15,7 @@ export {
   CheckIcon,
   DotsThreeIcon,
   DownloadSimpleIcon,
+  ExportIcon,
   FeatherIcon,
   GearIcon,
   LampIcon,

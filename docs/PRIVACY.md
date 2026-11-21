@@ -46,6 +46,14 @@ share sheet. You choose where it goes. The app does not upload it, and it
 holds your books, reading nights, paths, journal and settings, so keep it
 somewhere you trust. Restoring reads a file you pick and stays on the phone.
 
+## Sharing your sky
+
+The sky card is a picture the app draws on your phone: your stars, a few
+numbers (nights, pages, books finished or time read) and, only if you turn
+them on, up to three book titles. It never shows journal entries, quotes,
+notes or reflections. The image goes only where you send it from the share
+sheet; the app uploads nothing.
+
 ## Notifications
 
 If you turn on the evening reminder, the app schedules notifications on your

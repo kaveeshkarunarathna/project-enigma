@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
 import { IconButton } from '@/components/IconButton';
-import { BarcodeIcon, GearIcon, LampIcon } from '@/components/icons';
+import { BarcodeIcon, ExportIcon, GearIcon, LampIcon } from '@/components/icons';
 import { Rise } from '@/components/motion/Rise';
 import { Pressable } from '@/components/Pressable';
 import { TAB_BAR_SPACE } from '@/components/Screen';
@@ -187,7 +187,13 @@ export default function SkyScreen() {
             ) : null}
           </Animated.View>
           {picked ? (
-            <View pointerEvents="none" style={[styles.ring, { left: picked.x - 14, top: picked.y - 14, borderColor: colors.starlight }]} />
+            <View
+              pointerEvents="none"
+              style={[
+                styles.ring,
+                { left: picked.x - 14, top: picked.y - 14, borderColor: colors.starlight },
+              ]}
+            />
           ) : null}
         </View>
       </GestureDetector>
@@ -221,16 +227,27 @@ export default function SkyScreen() {
         <Text variant="label" tone="starlight" accessibilityRole="header">
           Your sky
         </Text>
-        <View>
-          <IconButton
-            icon={GearIcon}
-            label={backupNudge ? 'Settings. Time to back up your sky' : 'Settings'}
-            tone="mist"
-            onPress={() => router.push('/settings')}
-          />
-          {backupNudge ? (
-            <View pointerEvents="none" style={[styles.dot, { backgroundColor: colors.candlelight }]} />
+        <View style={styles.headerIcons}>
+          {count ? (
+            <IconButton
+              icon={ExportIcon}
+              label="Share your sky as a picture"
+              tone="mist"
+              size={22}
+              onPress={() => router.push('/sky-card')}
+            />
           ) : null}
+          <View>
+            <IconButton
+              icon={GearIcon}
+              label={backupNudge ? 'Settings. Time to back up your sky' : 'Settings'}
+              tone="mist"
+              onPress={() => router.push('/settings')}
+            />
+            {backupNudge ? (
+              <View pointerEvents="none" style={[styles.dot, { backgroundColor: colors.candlelight }]} />
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -354,7 +371,11 @@ function NightCard({
 }) {
   const { colors } = useTheme();
   return (
-    <Rise style={[styles.card, { left: x, top: y, backgroundColor: colors.raised, borderColor: colors.hairline }]}>
+    <Rise
+      style={[
+        styles.card,
+        { left: x, top: y, backgroundColor: colors.raised, borderColor: colors.hairline },
+      ]}>
       <Text variant="label">{nightTitle(night)}</Text>
       <Text variant="caption" tone="starlight">
         {minutes} {minutes === 1 ? 'minute' : 'minutes'}
@@ -375,7 +396,15 @@ function NightCard({
 }
 
 /** Tonight, pulled up from the clouds. The sky dims behind it; tap the sky to let it go. */
-function TonightSheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+function TonightSheet({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   const { colors, reduceMotion } = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -401,7 +430,13 @@ function TonightSheet({ open, onClose, children }: { open: boolean; onClose: () 
       importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
       style={StyleSheet.absoluteFill}>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#07071A' }, dim]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Close" haptic={false} onPress={onClose} style={styles.fill} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          haptic={false}
+          onPress={onClose}
+          style={styles.fill}
+        />
       </Animated.View>
       <GestureDetector gesture={close}>
         <Animated.View
@@ -562,13 +597,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerIcons: { flexDirection: 'row', alignItems: 'center' },
   empty: { position: 'absolute', left: space.xxl, right: space.xxl, gap: space.xs },
   center: { textAlign: 'center' },
   glance: { position: 'absolute', left: space.gutter, right: space.gutter },
   glanceRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingTop: space.md },
   glanceBook: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   lamp: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  handle: { position: 'absolute', top: 0, left: '50%', marginLeft: -18, width: 36, height: 3, borderRadius: 2 },
+  handle: {
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    marginLeft: -18,
+    width: 36,
+    height: 3,
+    borderRadius: 2,
+  },
   card: {
     position: 'absolute',
     width: 180,
