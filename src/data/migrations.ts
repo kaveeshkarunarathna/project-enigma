@@ -129,6 +129,19 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE books ADD COLUMN isbn TEXT;
   CREATE UNIQUE INDEX books_isbn ON books(isbn) WHERE isbn IS NOT NULL;
   `,
+  // 4: search by meaning. Vectors made on this phone from the reader's own
+  // words (never from a quoted passage). Derived data: left out of backups and
+  // rebuilt on the phone, and removed with its entry.
+  `
+  CREATE TABLE journal_vectors (
+    entry_id TEXT NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+    chunk INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    text_hash TEXT NOT NULL,
+    vector TEXT NOT NULL,
+    PRIMARY KEY (entry_id, chunk)
+  );
+  `,
 ];
 
 export async function migrate(db: Db): Promise<void> {

@@ -23,6 +23,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 17 | Whimsical Night: storybook sky, moon and clouds drawn in code, tracked Lato titles | Done |
 | 18 | Sky card: share a picture of your sky (story or square) through the share sheet | Done |
 | 19 | The app is named Stellibria: app name, IDs, share card wordmark, store listing | Done |
+| 20 | Search your journal by meaning, with a small on-device model (offline, your own words only) | Done |
 
 ## Later
 

@@ -15,10 +15,12 @@ import { listEntries } from '@/data/journal';
 import { useLiveQuery } from '@/data/live';
 import { DEFAULT_SETTINGS, getSettings, setSetting, type Settings } from '@/data/settings';
 import { daysSinceBackup } from '@/domain/backup';
+import { MEANING_DOWNLOAD_MB } from '@/domain/meaning';
 import { formatTime, REMINDER_TIMES } from '@/domain/reminders';
 import { shareBackup } from '@/features/backup/files';
 import { DEV_TOOLS } from '@/features/dev/sampleData';
 import { journalAsText } from '@/features/journal/exportText';
+import { cancelMeaningDownload, turnOffMeaning, turnOnMeaning, useMeaning } from '@/features/meaning/meaning';
 import { remindersAllowed, syncReminders } from '@/features/reminders/reminders';
 import { space } from '@/theme/tokens';
 
@@ -108,6 +110,8 @@ export default function SettingsScreen() {
         </ChipRow>
       </Section>
 
+      <MeaningSection />
+
       <Section title="Keep your sky safe">
         <Text tone="mist" style={styles.note}>
           Your books, reading nights, paths and journal are stored only on this phone. Nothing is uploaded,
@@ -136,6 +140,52 @@ export default function SettingsScreen() {
         {DEV_TOOLS ? <Link label="Dev tools" onPress={() => router.push('/dev')} /> : null}
       </Section>
     </Screen>
+  );
+}
+
+function MeaningSection() {
+  const db = useDb();
+  const status = useMeaning();
+  if (status.phase === 'unsupported') {
+    return (
+      <Section title="Search by meaning">
+        <Text tone="mist" style={styles.note}>
+          {Platform.OS === 'web'
+            ? 'Search by meaning works in the phone app. Here the journal is searched by its words.'
+            : 'Search by meaning needs the full Stellibria app, not Expo Go. Here the journal is searched by its words.'}
+        </Text>
+      </Section>
+    );
+  }
+  const on = status.phase === 'ready' || status.phase === 'indexing';
+  return (
+    <Section title="Search by meaning">
+      <Text tone="mist" style={styles.note}>
+        {`Find an entry by what you meant, even when you used other words: “feeling small” finds the night you wrote about the stars. A small language model (about ${MEANING_DOWNLOAD_MB} MB) is downloaded once. After that it works offline, and it reads only your own words on this phone, never the passages you quote. Nothing is sent anywhere.`}
+      </Text>
+      <Text variant="caption" style={styles.note}>
+        {status.phase === 'downloading'
+          ? `Downloading, ${Math.round(status.progress * 100)}%.`
+          : status.phase === 'indexing'
+            ? `On. Getting to know your journal, ${status.done} of ${status.total}.`
+            : status.phase === 'ready'
+              ? 'On.'
+              : status.phase === 'error'
+                ? status.message
+                : 'Off. The journal is searched by its words.'}
+      </Text>
+      {status.phase === 'downloading' ? (
+        <Link label="Stop the download" onPress={cancelMeaningDownload} />
+      ) : on ? (
+        <Link label="Turn off and remove the model" onPress={() => turnOffMeaning(db)} />
+      ) : (
+        <Link
+          label={`Turn on (${MEANING_DOWNLOAD_MB} MB download)`}
+          onPress={() => turnOnMeaning(db)}
+          tone="aurora"
+        />
+      )}
+    </Section>
   );
 }
 

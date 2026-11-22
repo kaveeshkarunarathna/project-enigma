@@ -4,7 +4,7 @@ _Draft for the Google Play and App Store listings. Kaveesh should review it,
 add a contact email, and publish it at a public URL before release._
 
 **Short version:** Stellibria keeps your reading life on your phone. There is
-no account, no tracking, no ads and no AI. We never see your journal.
+no account, no tracking, no ads and no AI service. We never see your journal.
 
 ## What stays on your phone
 
@@ -26,6 +26,16 @@ journal as text from Settings at any time.
   your phone.
 - That is all. There are no analytics, crash reporting, advertising or other
   third-party services in the app.
+
+## Search by meaning
+
+If you turn on search by meaning in Settings, the app downloads a small
+language model (all-MiniLM-L6-v2, about 25 MB) once, from Hugging Face. The
+download carries no personal information. After that the model runs only on
+your phone: it turns the words you wrote in your journal into numbers so
+entries can be found by what they mean. It never reads the passages you quote
+from books, never writes or summarizes anything, and nothing it reads or
+makes leaves your phone. Turning it off deletes the model and those numbers.
 
 ## Camera and photos
 
@@ -68,4 +78,4 @@ children.
 
 If this policy changes, the new version will be published here with its date.
 
-_Last updated: 2026-11-20._
+_Last updated: 2026-11-22._
