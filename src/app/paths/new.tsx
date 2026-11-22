@@ -8,14 +8,19 @@ import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { useDb } from '@/data/DataProvider';
-import { createUserPath, getPath, updateUserPath } from '@/data/paths';
+import { addBookToUserPath, createUserPath, getPath, updateUserPath } from '@/data/paths';
 import { GENRE_LABEL, GENRES } from '@/features/paths/genres';
 import { space } from '@/theme/tokens';
 
 /** Create a reader-made path, or rename one with `?id=...`. */
 export default function NewPathScreen() {
   const db = useDb();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // `withTitle`/`withAuthor`: start the path with this book (from a suggestion).
+  const { id, withTitle, withAuthor } = useLocalSearchParams<{
+    id?: string;
+    withTitle?: string;
+    withAuthor?: string;
+  }>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [genre, setGenre] = useState<string | null>(null);
@@ -41,6 +46,17 @@ export default function NewPathScreen() {
         router.back();
       } else {
         const path = await createUserPath(db, { title, description, genre: genre ?? undefined });
+        if (withTitle) {
+          await addBookToUserPath(db, path.id, {
+            olWorkKey: null,
+            title: withTitle,
+            author: withAuthor || null,
+            coverUrl: null,
+            note: null,
+          });
+          router.replace({ pathname: '/paths/[id]', params: { id: path.id } });
+          return;
+        }
         router.replace({ pathname: '/paths/[id]', params: { id: path.id } });
         router.push({ pathname: '/search', params: { pathId: path.id } });
       }
@@ -86,7 +102,7 @@ export default function NewPathScreen() {
       {error ? <Text tone="aurora">{error}</Text> : null}
       <View style={styles.action}>
         <Button
-          label={id ? 'Save' : 'Create and add books'}
+          label={id ? 'Save' : withTitle ? `Create it with ${withTitle}` : 'Create and add books'}
           onPress={save}
           disabled={!title.trim() || busy}
         />

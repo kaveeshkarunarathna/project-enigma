@@ -6,6 +6,7 @@ import { useLiveQuery } from '@/data/live';
 import type { EntryKind } from '@/data/journal';
 import { clearVectors, indexJournal, pendingEntries, searchJournal, type JournalHit } from '@/data/meaning';
 import { getState, setState } from '@/data/settings';
+import { normalize } from '@/domain/meaning';
 import {
   downloadModel,
   getEmbed,
@@ -135,7 +136,7 @@ export async function embedQuery(db: Db, query: string): Promise<Float32Array | 
   if (!s || !query.trim()) return null;
   try {
     const embed = await getEmbed(s.files);
-    return Float32Array.from(await embed(query.trim()));
+    return normalize(await embed(query.trim()));
   } catch {
     return null;
   }

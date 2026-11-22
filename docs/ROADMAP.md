@@ -24,6 +24,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 18 | Sky card: share a picture of your sky (story or square) through the share sheet | Done |
 | 19 | The app is named Stellibria: app name, IDs, share card wordmark, store listing | Done |
 | 20 | Search your journal by meaning, with a small on-device model (offline, your own words only) | Done |
+| 21 | Next stars: book suggestions from what you read and write, with the reason, into your own paths | Done |
 
 ## Later
 

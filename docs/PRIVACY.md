@@ -37,6 +37,14 @@ entries can be found by what they mean. It never reads the passages you quote
 from books, never writes or summarizes anything, and nothing it reads or
 makes leaves your phone. Turning it off deletes the model and those numbers.
 
+## Book suggestions
+
+Suggestions are chosen on your phone from the books on your shelf, the paths
+you follow and your journal, matched against a list of books bundled with the
+app. Nothing is sent anywhere to choose them. If search by meaning is on, the
+same on-device model compares your journal with short descriptions we wrote;
+quoted passages are never used.
+
 ## Camera and photos
 
 The page scanner reads text from a photo **on your phone** (or from your phone's document scanner, which captures the open page the same way), using Apple's
