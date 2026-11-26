@@ -12,9 +12,12 @@
 | Fonts | `@expo-google-fonts/gloock`, `@expo-google-fonts/literata` |
 | Icons | `phosphor-react-native` (light weight) |
 | Haptics | `expo-haptics` |
+| Search by meaning (optional) | `react-native-executorch` (all-MiniLM-L6-v2 on the phone) |
 
-Everything above runs in Expo Go, so the app can be tested on an iPhone
-without a paid developer account.
+Everything above runs in Expo Go except the page scanner and search by
+meaning, which need a development build (`npx expo run:ios --device` with a
+free Apple ID). Both fall back calmly in Expo Go, so the rest of the app can
+be tested there without a paid developer account.
 
 ## Folders
 
@@ -27,7 +30,7 @@ src/
     search.tsx     Find a book (Open Library).
     book/          Book page and add-by-hand form.
   components/      Shared UI: Text, Button, Pressable, Screen, StarField, TabBar.
-  content/         Writing bundled with the app: reflection prompts, curated paths, the classics catalog.
+  content/         Writing bundled with the app: reflection prompts, curated paths, the classics catalog, the suggestion catalogue.
   data/            SQLite schema, migrations and repositories (books, sessions,
                    journal, paths, settings), plus useLiveQuery.
   features/        Feature helpers shared by several screens (formatting, hooks).

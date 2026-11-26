@@ -22,6 +22,7 @@ import { useReaderGenre } from '@/features/paths/useReaderGenre';
 import { nightKey } from '@/domain/time';
 import { BookPicker } from '@/features/journal/BookPicker';
 import { EntryItem } from '@/features/journal/EntryItem';
+import { useJournalSearch, type MeaningStatus } from '@/features/meaning/meaning';
 import { space } from '@/theme/tokens';
 
 const FILTERS: { label: string; kind: EntryKind | null }[] = [
@@ -41,10 +42,19 @@ export default function JournalScreen() {
   const genre = useReaderGenre();
   const prompt = promptFor(nightKey(), genre, offset);
   const { data: book } = useLiveQuery(() => currentBook(db), ['books', 'sessions']);
-  const { data: entries, loading } = useLiveQuery(
-    () => listEntries(db, { kind: kind ?? undefined, search, bookId: filterBook ?? undefined }),
+  const { data: listed, loading } = useLiveQuery(
+    () => listEntries(db, { kind: kind ?? undefined, bookId: filterBook ?? undefined }),
     ['journal', 'books'],
-    [kind, search, filterBook],
+    [kind, filterBook],
+  );
+  const { hits, status: meaning } = useJournalSearch(search, {
+    kind: kind ?? undefined,
+    bookId: filterBook ?? undefined,
+  });
+  const searchingWords = !!search.trim();
+  const entries = searchingWords ? hits?.map((h) => h.entry) : listed;
+  const notes = new Map(
+    (searchingWords ? (hits ?? []) : []).map((h) => [h.entry.id, h.matchedBy === 'meaning' ? 'close in meaning' : null]),
   );
   const { data: any } = useLiveQuery(() => listEntries(db, { limit: 1 }), ['journal']);
   const hasAny = !!any?.length;
@@ -130,6 +140,7 @@ export default function JournalScreen() {
             autoCorrect={false}
             clearButtonMode="while-editing"
           />
+          <MeaningLine status={meaning} />
         </View>
       ) : null}
 
@@ -154,12 +165,35 @@ export default function JournalScreen() {
         {(entries ?? []).map((e, i) => (
           <View key={e.id}>
             {i > 0 ? <Hairline /> : null}
-            <EntryItem entry={e} />
+            <EntryItem entry={e} note={notes.get(e.id)} />
           </View>
         ))}
       </View>
     </Screen>
   );
+}
+
+/** One quiet line under the search box saying how it searches. */
+function MeaningLine({ status }: { status: MeaningStatus }) {
+  switch (status.phase) {
+    case 'ready':
+      return <Text variant="caption">Finds what you meant, not only the words. Read on this phone.</Text>;
+    case 'indexing':
+      return (
+        <Text variant="caption">{`Getting to know your journal, ${status.done} of ${status.total}.`}</Text>
+      );
+    case 'downloading':
+      return <Text variant="caption">{`Fetching search by meaning, ${Math.round(status.progress * 100)}%.`}</Text>;
+    case 'off':
+    case 'error':
+      return (
+        <Pressable accessibilityRole="button" haptic={false} onPress={() => router.push('/settings')}>
+          <Text variant="caption">Searching by words. Search by meaning can be turned on in Settings.</Text>
+        </Pressable>
+      );
+    default:
+      return null;
+  }
 }
 
 const styles = StyleSheet.create({

@@ -7,8 +7,11 @@ import { Text } from '@/components/Text';
 import type { JournalEntry } from '@/data/journal';
 import { space } from '@/theme/tokens';
 
-/** One journal entry in the list: the words, then one small line with the date and book. */
-export function EntryItem({ entry }: { entry: JournalEntry }) {
+/**
+ * One journal entry in the list: the words, then one small line with the date
+ * and book (and, in search, a quiet note such as "close in meaning").
+ */
+export function EntryItem({ entry, note }: { entry: JournalEntry; note?: string | null }) {
   const meta = [
     entryDate(entry.createdAt),
     entry.bookTitle,
@@ -16,11 +19,12 @@ export function EntryItem({ entry }: { entry: JournalEntry }) {
   ]
     .filter(Boolean)
     .join(', ');
+  const caption = note ? `${meta}  ·  ${note}` : meta;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${KIND_LABEL[entry.kind]}, ${meta}. ${entry.quoteText ?? entry.body}`}
+      accessibilityLabel={`${KIND_LABEL[entry.kind]}, ${caption}. ${entry.quoteText ?? entry.body}`}
       accessibilityHint="Opens the entry"
       haptic={false}
       onPress={() => router.push({ pathname: '/journal/[id]', params: { id: entry.id } })}
@@ -35,7 +39,7 @@ export function EntryItem({ entry }: { entry: JournalEntry }) {
           {entry.body}
         </Text>
       ) : null}
-      <Text variant="caption">{meta}</Text>
+      <Text variant="caption">{caption}</Text>
     </Pressable>
   );
 }

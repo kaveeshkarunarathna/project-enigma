@@ -35,10 +35,12 @@ Scan the QR code with the iPhone camera and the app opens in Expo Go.
 
 - **Android:** start an emulator from Android Studio on your Mac, then press `a`
   in the terminal.
-- **The page scanner** uses native code, so it needs a development build:
-  `npx expo run:ios --device` with Xcode and a free Apple ID. Step by step in
-  [the scanner notes](docs/features/09-scanner.md#running-it-on-your-devices).
-  Everything else runs in Expo Go.
+- **The page scanner** and **search by meaning** use native code, so they
+  need a development build: `npx expo run:ios --device` with Xcode and a free
+  Apple ID, or `npx expo run:android` with the emulator. Step by step in
+  [the scanner notes](docs/features/09-scanner.md#running-it-on-your-devices)
+  and [search by meaning](docs/features/20-search-by-meaning.md#testing-it-mac-iphone-no-android-phone).
+  Everything else runs in Expo Go. The app needs iOS 17+ and Android 8+.
 
 ## Web preview
 

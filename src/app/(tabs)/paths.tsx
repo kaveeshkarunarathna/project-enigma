@@ -16,6 +16,8 @@ import { useLiveQuery } from '@/data/live';
 import { getPath, listPaths, type ReadingPathWithBooks } from '@/data/paths';
 import { pathProgress } from '@/domain/paths';
 import { GENRE_LABEL, GENRES } from '@/features/paths/genres';
+import { SuggestionRow } from '@/features/suggest/SuggestionRow';
+import { useSuggestions } from '@/features/suggest/useSuggestions';
 import { space } from '@/theme/tokens';
 
 export default function PathsScreen() {
@@ -27,6 +29,7 @@ export default function PathsScreen() {
     );
   }, ['paths']);
   const { data: shelf } = useLiveQuery(() => listBooks(db), ['books']);
+  const suggestions = useSuggestions(2);
 
   const yours = (paths ?? []).filter((p) => p.joinedAt || p.source === 'user');
   // Curated paths keep the order they are written in, easiest first.
@@ -40,6 +43,23 @@ export default function PathsScreen() {
 
   return (
     <Screen title="Paths">
+      {suggestions?.length ? (
+        <Section
+          title="Next stars for you"
+          accessory={
+            <Pressable accessibilityRole="button" haptic={false} onPress={() => router.push('/suggestions')}>
+              <Text variant="caption">More</Text>
+            </Pressable>
+          }>
+          {suggestions.map((s, i) => (
+            <View key={s.key}>
+              {i > 0 ? <Hairline /> : null}
+              <SuggestionRow suggestion={s} />
+            </View>
+          ))}
+        </Section>
+      ) : null}
+
       {yours.length ? (
         <Section title="Your paths">
           {yours.map((p, i) => (
