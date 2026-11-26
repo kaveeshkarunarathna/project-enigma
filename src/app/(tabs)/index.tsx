@@ -1,5 +1,6 @@
 import { router, useIsFocused } from 'expo-router';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
   GestureDetector,
@@ -9,7 +10,14 @@ import {
   useSimultaneousGestures,
   useTapGesture,
 } from 'react-native-gesture-handler';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  withDecay,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
@@ -19,11 +27,11 @@ import { Rise } from '@/components/motion/Rise';
 import { Pressable } from '@/components/Pressable';
 import { TAB_BAR_SPACE } from '@/components/Screen';
 import { Atmosphere, Vignette } from '@/components/sky/Atmosphere';
-import { DepthClouds } from '@/components/sky/DepthClouds';
+import { DepthClouds, NearMotes } from '@/components/sky/DepthClouds';
 import { BookStar } from '@/components/sky/BookStar';
 import { Constellation } from '@/components/sky/Constellation';
 import { Ignite } from '@/components/sky/Ignite';
-import { NightSky } from '@/components/sky/NightSky';
+import { StarChartView, type ChartFocus } from '@/components/sky/StarChartView';
 import { WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
 import { findClassic } from '@/content/classics';
@@ -31,37 +39,44 @@ import { currentBook, listBooks, type Book } from '@/data/books';
 import { lastBackupAt } from '@/data/backup';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
-import { paceSessions, readingNights, skyStats } from '@/data/sessions';
+import { paceSessions, skyStats } from '@/data/sessions';
 import { backupDue, daysSinceBackup } from '@/domain/backup';
 import { weekMessage } from '@/domain/moonlog';
-import { nearestStar, nightTitle } from '@/domain/nights';
 import { finishLine, readingPace, type Pace } from '@/domain/pace';
 import { pathProgress } from '@/domain/paths';
 import { bookCompletion, litBeads, ringSize, starBrightness } from '@/domain/progress';
-import { layoutSky } from '@/domain/sky';
+import {
+  depthShift,
+  hitStarChart,
+  homeConstellation,
+  type ChartConstellation,
+  type ChartStar,
+  type StarChart,
+} from '@/domain/starChart';
 import { skyMood } from '@/domain/skyMood';
 import { addDays } from '@/domain/time';
 import { bookCaption } from '@/features/books/format';
 import { useThisWeek } from '@/features/moonlog/useMoonLog';
 import { useTonightsPath } from '@/features/paths/useTonightsPath';
+import { useStarChart } from '@/features/sky/useStarChart';
 import { useTilt } from '@/features/sky/useTilt';
 import { useTheme } from '@/theme/theme';
-import { motion, radius, space } from '@/theme/tokens';
+import { depth, fontFamily, motion, radius, space } from '@/theme/tokens';
 
 /**
- * The sky: the first screen and the heart of the app, and the whole screen.
- * One star for every night read, in a sky with depth: a Milky Way far back,
- * the reader's stars, clouds at three distances, all shifting gently as the
- * phone tilts. Drag to wander, pinch to look closer, tap a star to see its
- * night. The book in hand rests on the clouds; pull it up for tonight.
+ * The sky: the first screen and the heart of the app. A star chart of what
+ * the reader has read: every finished book is a star, and the books of a
+ * reading path join into its constellation, named once it is complete.
+ * Drag to wander, pinch to look closer, tap a star or a constellation to
+ * choose it, double tap to come home. Nights read live in the Moon Log.
+ * The book in hand rests on the clouds; pull it up for tonight.
  */
 export default function SkyScreen() {
   const db = useDb();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { colors, reduceMotion } = useTheme();
-  const { week, today, settings } = useThisWeek();
-  const { data: nights } = useLiveQuery(() => readingNights(db), ['sessions']);
+  const { week, today } = useThisWeek();
   const { data: book, loading } = useLiveQuery(() => currentBook(db), ['books', 'sessions']);
   const { data: shelf } = useLiveQuery(() => listBooks(db), ['books']);
   const { data: stats } = useLiveQuery(() => skyStats(db), ['sessions', 'books']);
@@ -69,41 +84,136 @@ export default function SkyScreen() {
   const { data: lastBackup } = useLiveQuery(() => lastBackupAt(db), ['settings']);
   const path = useTonightsPath(shelf, book);
   const pace = readingPace(recent ?? [], today);
-  const count = nights?.length ?? 0;
   const [mood] = useState(() => {
     const now = new Date();
     return skyMood(now.getHours() + now.getMinutes() / 60);
   });
   const isFocused = useIsFocused();
   const tilt = useTilt(isFocused);
-  const [picked, setPicked] = useState<{ night: string; x: number; y: number } | null>(null);
+  const [focus, setFocus] = useState<ChartFocus>(null);
   const [sheet, setSheet] = useState(false);
   // A small warm dot on the gear, instead of a line of text, when a backup is due.
   const backupNudge =
     !!stats && lastBackup !== undefined && backupDue(stats.nightsRead, daysSinceBackup(lastBackup));
 
-  // The reader's stars fill the open sky between the header and the clouds.
-  const skyTop = insets.top + 56;
+  // The chart fills the open sky between the header and the clouds.
+  const skyTop = insets.top + 84;
   const horizon = height - TAB_BAR_SPACE - insets.bottom - 70;
   const skyHeight = horizon - skyTop;
-  const stars = useMemo(
-    () => (nights ? layoutSky(nights, width, skyHeight, settings.goalMinutes) : []),
-    [nights, width, skyHeight, settings.goalMinutes],
-  );
+  // The clouds rise over the bottom of the sky; the chart is laid out and
+  // centred in the clear part above them.
+  const clearHeight = skyHeight - 110;
+  const viewport = useMemo(() => ({ width, height: clearHeight }), [width, clearHeight]);
+  const chart = useStarChart(shelf, viewport);
+  const W = chart?.width ?? width;
+  const H = chart?.height ?? skyHeight;
+  const stars = chart ? chart.constellations.reduce((n, c) => n + c.finished, 0) + chart.lone.length : 0;
+  const empty = !!chart && stars === 0;
 
-  // Exploring: drag and pinch move the star layer; it stays where it is left.
+  // A soft tap when a constellation is completed while the sky is open. Once,
+  // and never for the ones already complete when it opened.
+  const completeKey = chart?.constellations
+    .filter((c) => c.complete)
+    .map((c) => c.pathId)
+    .join('|');
+  const knownComplete = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (completeKey === undefined) return;
+    const now = new Set(completeKey ? completeKey.split('|') : []);
+    const before = knownComplete.current;
+    knownComplete.current = now;
+    if (before && [...now].some((id) => !before.has(id))) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+    }
+  }, [completeKey]);
+
+  // The camera: drag to wander the chart, pinch to look closer.
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const scale = useSharedValue(1);
   const startScale = useSharedValue(1);
-  const reach = width * 0.4;
+  // Where the chart opened. The planes of the sky follow the drag from here,
+  // each by its own share, so the sky reads as several distances.
+  const homeX = useSharedValue(0);
+  const homeY = useSharedValue(0);
+  const dx = useDerivedValue(() => tx.get() - homeX.get());
+  const dy = useDerivedValue(() => ty.get() - homeY.get());
+  const explore = useMemo(() => ({ dx, dy, scale }), [dx, dy, scale]);
+  // 0 with nothing chosen, 1 with a star or constellation chosen.
+  const focusT = useSharedValue(0);
+  useEffect(() => {
+    const target = focus ? 1 : 0;
+    focusT.set(reduceMotion ? target : withTiming(target, { duration: motion.enter }));
+  }, [focus, reduceMotion, focusT]);
+
+  /** Where the chart layer must sit so chart point (cx, cy) is in the middle of the sky. */
+  const centreOn = useCallback(
+    (cx: number, cy: number, s: number) => ({
+      x: clampPan(width / 2 - W / 2 - (cx - W / 2) * s, width, W, s),
+      y: clampPan(clearHeight / 2 - H / 2 - (cy - H / 2) * s, clearHeight, H, s),
+    }),
+    [width, clearHeight, W, H],
+  );
+  const moveTo = useCallback(
+    (cx: number, cy: number, s: number) => {
+      const to = centreOn(cx, cy, s);
+      if (reduceMotion) {
+        tx.set(to.x);
+        ty.set(to.y);
+        scale.set(s);
+        return;
+      }
+      const ease = { duration: motion.enter * 1.6, easing: Easing.inOut(Easing.cubic) };
+      tx.set(withTiming(to.x, ease));
+      ty.set(withTiming(to.y, ease));
+      scale.set(withTiming(s, ease));
+    },
+    [centreOn, reduceMotion, tx, ty, scale],
+  );
+  const goHome = useCallback(
+    (animate: boolean) => {
+      if (!chart) return;
+      const home = homeConstellation(chart);
+      const cx = home ? home.box.x + home.box.w / 2 : W / 2;
+      const cy = home ? home.box.y + home.box.h / 2 : H / 2;
+      if (animate) moveTo(cx, cy, 1);
+      else {
+        const to = centreOn(cx, cy, 1);
+        tx.set(to.x);
+        ty.set(to.y);
+        homeX.set(to.x);
+        homeY.set(to.y);
+        scale.set(1);
+      }
+    },
+    [chart, W, H, moveTo, centreOn, tx, ty, scale, homeX, homeY],
+  );
+  // Open on the constellation finished last, once the chart is known.
+  const placed = useRef(false);
+  useEffect(() => {
+    if (chart && !placed.current) {
+      goHome(false);
+      placed.current = true;
+    }
+  }, [chart, goHome]);
+
   const pan = usePanGesture({
     minDistance: 6,
     onUpdate: (e) => {
       'worklet';
       const s = scale.get();
-      tx.set(Math.max(-reach * s, Math.min(reach * s, tx.get() + e.changeX)));
-      ty.set(Math.max(-reach * s, Math.min(reach * s, ty.get() + e.changeY)));
+      tx.set(clampPan(tx.get() + e.changeX, width, W, s));
+      ty.set(clampPan(ty.get() + e.changeY, clearHeight, H, s));
+    },
+    onDeactivate: (e) => {
+      'worklet';
+      if (reduceMotion) return;
+      // A gentle glide after a flick, slowing to rest inside the chart.
+      const s = scale.get();
+      const bx = [clampPan(-1e6, width, W, s), clampPan(1e6, width, W, s)] as [number, number];
+      const by = [clampPan(-1e6, clearHeight, H, s), clampPan(1e6, clearHeight, H, s)] as [number, number];
+      tx.set(withDecay({ velocity: e.velocityX * 0.6, deceleration: 0.994, clamp: bx }));
+      ty.set(withDecay({ velocity: e.velocityY * 0.6, deceleration: 0.994, clamp: by }));
     },
   });
   const pinch = usePinchGesture({
@@ -113,122 +223,117 @@ export default function SkyScreen() {
     },
     onUpdate: (e) => {
       'worklet';
-      scale.set(Math.max(1, Math.min(2.6, startScale.get() * e.scale)));
+      const s = Math.max(0.6, Math.min(2.4, startScale.get() * e.scale));
+      scale.set(s);
+      tx.set(clampPan(tx.get(), width, W, s));
+      ty.set(clampPan(ty.get(), clearHeight, H, s));
     },
   });
+
+  const choose = (next: ChartFocus) => {
+    setFocus(next);
+    if (next) void Haptics.selectionAsync();
+  };
   const tap = useTapGesture({
     runOnJS: true,
     maxDistance: 8,
     onActivate: (e) => {
+      if (!chart) return;
       const s = scale.get();
-      const ox = tx.get() - tilt.x.get() * 10;
-      const oy = ty.get() - tilt.y.get() * 10;
-      // Undo the layer's move and zoom to find the point in the sky's own space.
-      const px = width / 2 + (e.x - width / 2 - ox) / s;
-      const py = skyHeight / 2 + (e.y - skyHeight / 2 - oy) / s;
-      const hit = nearestStar(stars, px, py, 28 / s);
-      setPicked(
-        hit
-          ? {
-              night: hit.night,
-              x: width / 2 + (hit.x - width / 2) * s + ox,
-              y: skyHeight / 2 + (hit.y - skyHeight / 2) * s + oy,
-            }
-          : null,
-      );
+      const ox = tx.get() - tilt.x.get() * depth.stars.tilt;
+      const oy = ty.get() - tilt.y.get() * depth.stars.tilt;
+      // Undo the layer's move and zoom to find the point on the chart.
+      const px = W / 2 + (e.x - ox - W / 2) / s;
+      const py = H / 2 + (e.y - oy - H / 2) / s;
+      // Constellations sit at their own depths, shifted by tilt and drag.
+      const shift = (z: number) =>
+        reduceMotion ? { x: 0, y: 0 } : depthShift(z, dx.get(), dy.get(), tilt.x.get(), tilt.y.get());
+      const hit = hitStarChart(chart, px, py, 26 / s, shift);
+      if (!hit) {
+        choose(null);
+        return;
+      }
+      if (hit.kind === 'path') {
+        const c = chart.constellations.find((k) => k.pathId === hit.pathId);
+        choose({ pathId: hit.pathId, bookId: null });
+        if (c) moveTo(c.box.x + c.box.w / 2, c.box.y + c.box.h / 2, Math.max(s, 1.15));
+        return;
+      }
+      choose({ pathId: hit.pathId, bookId: hit.star.bookId ?? `entry:${hit.star.title}` });
+      moveTo(hit.star.x, hit.star.y, Math.max(s, 1.15));
     },
   });
   const reset = useTapGesture({
     numberOfTaps: 2,
     runOnJS: true,
     onActivate: () => {
-      setPicked(null);
-      if (reduceMotion) {
-        tx.set(0);
-        ty.set(0);
-        scale.set(1);
-      } else {
-        tx.set(withTiming(0, { duration: motion.enter }));
-        ty.set(withTiming(0, { duration: motion.enter }));
-        scale.set(withTiming(1, { duration: motion.enter }));
-      }
+      setFocus(null);
+      goHome(true);
     },
   });
   const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch), reset, tap);
-  const starLayer = useAnimatedStyle(() => ({
+  const chartLayer = useAnimatedStyle(() => ({
     transform: [
-      { translateX: tx.get() - tilt.x.get() * 10 },
-      { translateY: ty.get() - tilt.y.get() * 10 },
+      { translateX: tx.get() - tilt.x.get() * depth.stars.tilt },
+      { translateY: ty.get() - tilt.y.get() * depth.stars.tilt },
       { scale: scale.get() },
     ],
   }));
-  const pickedNight = picked ? nights?.find((n) => n.night === picked.night) : null;
+
+  const chosenPath = focus?.pathId ? chart?.constellations.find((c) => c.pathId === focus.pathId) : null;
+  const chosenStar = focus?.bookId
+    ? [...(chosenPath?.stars ?? []), ...(chart?.lone ?? [])].find(
+        (s) => (s.bookId ?? `entry:${s.title}`) === focus.bookId,
+      )
+    : null;
+  const constellationsDone = chart?.constellations.filter((c) => c.complete).length ?? 0;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.night }]}>
-      <Atmosphere mood={mood} tilt={tilt} />
+      {tilt.source}
+      <Atmosphere mood={mood} tilt={tilt} explore={explore} focus={focusT} />
 
       <GestureDetector gesture={gesture}>
         <View
           style={[styles.skyArea, { top: skyTop, height: skyHeight }]}
           accessible
-          accessibilityRole="button"
-          accessibilityLabel={
-            count ? `Your sky, ${count} ${count === 1 ? 'star' : 'stars'}` : 'Your sky, no stars yet'
-          }
-          accessibilityHint={count ? 'Opens your latest night' : undefined}
-          onAccessibilityTap={() => {
-            const last = nights?.[nights.length - 1];
-            if (last) router.push({ pathname: '/night/[night]', params: { night: last.night } });
-          }}>
-          <Animated.View style={[styles.fill, starLayer]}>
-            {nights ? (
-              <NightSky nights={nights} width={width} height={skyHeight} goalMinutes={settings.goalMinutes} />
+          accessibilityRole="image"
+          accessibilityLabel={chartSummary(chart)}>
+          <Animated.View style={[styles.chart, { width: W, height: H }, chartLayer]}>
+            {chart && !empty ? (
+              <StarChartView chart={chart} focus={focus} chosen={focusT} tilt={tilt} explore={explore} />
             ) : null}
           </Animated.View>
-          {picked ? (
-            <View
-              pointerEvents="none"
-              style={[
-                styles.ring,
-                { left: picked.x - 14, top: picked.y - 14, borderColor: colors.starlight },
-              ]}
-            />
-          ) : null}
         </View>
       </GestureDetector>
 
-      <DepthClouds tilt={tilt} horizon={horizon} />
+      <DepthClouds tilt={tilt} explore={explore} horizon={horizon} />
+      <NearMotes tilt={tilt} explore={explore} />
       <Vignette />
 
-      {nights && !count ? (
-        <View pointerEvents="none" style={[styles.empty, { top: skyTop + skyHeight * 0.38 }]}>
-          <Text variant="heading" style={styles.center}>
-            The first star is waiting
-          </Text>
+      {empty ? (
+        <View pointerEvents="none" style={[styles.empty, { top: skyTop + skyHeight * 0.34 }]}>
+          <Text style={styles.emptyTitle}>Your first star is waiting</Text>
           <Text variant="caption" style={styles.center}>
-            Read for a few minutes tonight and it appears here.
+            Finish a book and it lights up here. Follow a path and its books join into a constellation.
           </Text>
         </View>
       ) : null}
 
-      {picked && pickedNight ? (
-        <NightCard
-          night={pickedNight.night}
-          minutes={Math.round(pickedNight.seconds / 60)}
-          wrote={pickedNight.wrote}
-          x={Math.max(space.gutter, Math.min(width - 180 - space.gutter, picked.x - 90))}
-          y={skyTop + (picked.y > skyHeight * 0.6 ? picked.y - 150 : picked.y + 24)}
-          onClose={() => setPicked(null)}
-        />
-      ) : null}
-
       <View style={[styles.header, { top: insets.top + space.sm }]}>
-        <Text variant="label" tone="starlight" accessibilityRole="header">
-          Your sky
-        </Text>
+        <View style={styles.titleBlock}>
+          <Text style={styles.skyTitle} accessibilityRole="header">
+            Your sky
+          </Text>
+          {chart && !empty ? (
+            <Text variant="caption">
+              {plural(chart.booksFinished, 'book')} read
+              {constellationsDone ? `, ${plural(constellationsDone, 'constellation')} complete` : ''}
+            </Text>
+          ) : null}
+        </View>
         <View style={styles.headerIcons}>
-          {count ? (
+          {!empty ? (
             <IconButton
               icon={ExportIcon}
               label="Share your sky as a picture"
@@ -253,9 +358,15 @@ export default function SkyScreen() {
 
       {!loading ? (
         <View style={[styles.glance, { top: horizon + 6 }]}>
-          <Ignite>
-            {book ? <BookGlance book={book} onOpen={() => setSheet(true)} /> : <NoBookGlance />}
-          </Ignite>
+          {chosenPath && !chosenStar ? (
+            <ConstellationGlance key={chosenPath.pathId} c={chosenPath} onClose={() => choose(null)} />
+          ) : chosenStar ? (
+            <StarGlance key={focus?.bookId} star={chosenStar} onClose={() => choose(null)} />
+          ) : (
+            <Ignite>
+              {book ? <BookGlance book={book} onOpen={() => setSheet(true)} /> : <NoBookGlance />}
+            </Ignite>
+          )}
         </View>
       ) : null}
 
@@ -277,6 +388,115 @@ export default function SkyScreen() {
         {path ? <PathGlance path={path} shelf={shelf ?? []} /> : null}
       </TonightSheet>
     </View>
+  );
+}
+
+/**
+ * Keeps the chart in view: its edges may come a little way inside the sky,
+ * never further, so there is no empty sky to drag into. A chart smaller than
+ * the view sits in the middle.
+ */
+function clampPan(t: number, view: number, size: number, s: number): number {
+  'worklet';
+  const half = (size * s) / 2;
+  const margin = 28;
+  const hi = margin - size / 2 + half;
+  const lo = view - margin - size / 2 - half;
+  if (lo > hi) return (view - size) / 2;
+  return Math.min(hi, Math.max(lo, t));
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${n === 1 ? word : `${word}s`}`;
+}
+
+function chartSummary(chart: StarChart | null): string {
+  if (!chart) return 'Your sky';
+  const done = chart.constellations.filter((c) => c.complete);
+  const parts = [`Your sky: ${plural(chart.booksFinished, 'book')} read`];
+  if (done.length) parts.push(`complete constellations: ${done.map((c) => c.title).join(', ')}`);
+  const going = chart.constellations.filter((c) => !c.complete);
+  if (going.length) parts.push(...going.map((c) => `${c.title}, ${c.finished} of ${c.total} stars`));
+  return parts.join('. ');
+}
+
+function finishedLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return `finished ${d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+}
+
+/** A chosen constellation, resting on the clouds where the book in hand usually sits. */
+function ConstellationGlance({ c, onClose }: { c: ChartConstellation; onClose: () => void }) {
+  const { colors } = useTheme();
+  const caption = c.complete
+    ? [`All ${c.total} stars lit`, finishedLabel(c.completedAt)].filter(Boolean).join(', ')
+    : `${c.finished} of ${c.total} stars lit. ${nextStar(c)}`;
+  return (
+    <Rise style={styles.glanceRow}>
+      <View style={styles.inHandText}>
+        <Text style={styles.chosenTitle} numberOfLines={2}>
+          {c.title}
+        </Text>
+        <Text variant="caption" numberOfLines={2}>
+          {caption}
+        </Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${c.title}`}
+        onPress={() => {
+          onClose();
+          router.push({ pathname: '/paths/[id]', params: { id: c.pathId } });
+        }}
+        style={[styles.open, { borderColor: colors.starlight }]}>
+        <Text variant="button">Open path</Text>
+      </Pressable>
+    </Rise>
+  );
+}
+
+function nextStar(c: ChartConstellation): string {
+  const next = c.stars.find((s) => s.state !== 'finished');
+  return next ? `Next: ${next.title}.` : '';
+}
+
+/** A chosen book star. */
+function StarGlance({ star, onClose }: { star: ChartStar; onClose: () => void }) {
+  const { colors } = useTheme();
+  const status =
+    star.state === 'finished'
+      ? finishedLabel(star.finishedAt)
+      : star.state === 'reading'
+        ? `${Math.round(star.fill * 100)}% read`
+        : star.state === 'shelf'
+          ? 'on your shelf'
+          : 'not on your shelf yet';
+  // The constellation is in view and named, so the caption stays short.
+  const caption = [star.author, status].filter(Boolean).join(', ');
+  return (
+    <Rise style={styles.glanceRow}>
+      <View style={styles.inHandText}>
+        <Text variant="heading" numberOfLines={2}>
+          {star.title}
+        </Text>
+        <Text variant="caption" numberOfLines={2}>
+          {caption}
+        </Text>
+      </View>
+      {star.bookId ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${star.title}`}
+          onPress={() => {
+            onClose();
+            router.push({ pathname: '/book/[id]', params: { id: star.bookId! } });
+          }}
+          style={[styles.open, { borderColor: colors.starlight }]}>
+          <Text variant="button">Open book</Text>
+        </Pressable>
+      ) : null}
+    </Rise>
   );
 }
 
@@ -350,48 +570,6 @@ function NoBookGlance() {
         <BarcodeIcon size={24} weight="regular" color={colors.onStarlight} />
       </Pressable>
     </View>
-  );
-}
-
-/** A small card floating beside a tapped star. */
-function NightCard({
-  night,
-  minutes,
-  wrote,
-  x,
-  y,
-  onClose,
-}: {
-  night: string;
-  minutes: number;
-  wrote: boolean;
-  x: number;
-  y: number;
-  onClose: () => void;
-}) {
-  const { colors } = useTheme();
-  return (
-    <Rise
-      style={[
-        styles.card,
-        { left: x, top: y, backgroundColor: colors.raised, borderColor: colors.hairline },
-      ]}>
-      <Text variant="label">{nightTitle(night)}</Text>
-      <Text variant="caption" tone="starlight">
-        {minutes} {minutes === 1 ? 'minute' : 'minutes'}
-        {wrote ? ', and you wrote' : ''}
-      </Text>
-      <Pressable
-        accessibilityRole="button"
-        haptic={false}
-        onPress={() => {
-          onClose();
-          router.push({ pathname: '/night/[night]', params: { night } });
-        }}
-        style={styles.cardLink}>
-        <Text variant="button">Open night</Text>
-      </Pressable>
-    </Rise>
   );
 }
 
@@ -587,14 +765,31 @@ function PathGlance({
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
   fill: { flex: 1 },
-  skyArea: { position: 'absolute', left: 0, right: 0 },
-  ring: { position: 'absolute', width: 28, height: 28, borderRadius: 14, borderWidth: 1, opacity: 0.7 },
+  skyArea: { position: 'absolute', left: 0, right: 0, overflow: 'visible' },
+  chart: { position: 'absolute', left: 0, top: 0 },
+  titleBlock: { gap: 2 },
+  skyTitle: { fontFamily: fontFamily.serifItalic, fontSize: 28, lineHeight: 34, letterSpacing: 0.2 },
+  emptyTitle: {
+    fontFamily: fontFamily.serifItalic,
+    fontSize: 22,
+    lineHeight: 28,
+    textAlign: 'center',
+  },
+  chosenTitle: { fontFamily: fontFamily.serifItalic, fontSize: 20, lineHeight: 26 },
+  open: {
+    minHeight: 44,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   header: {
     position: 'absolute',
     left: space.gutter,
     right: space.sm,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   headerIcons: { flexDirection: 'row', alignItems: 'center' },

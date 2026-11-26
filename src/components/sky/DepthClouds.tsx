@@ -1,15 +1,20 @@
+import { BlurMask, Canvas, Circle } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
-import { useParallax, type Tilt } from './Atmosphere';
 import { cloudPath, type Puff } from '../art/cloudPath';
 import { useSvgId } from '../art/svgId';
+import { usePlane, type Explore } from '@/features/sky/depth';
+import type { Tilt } from '@/features/sky/useTilt';
+import { useTheme } from '@/theme/theme';
+import { depth } from '@/theme/tokens';
 
 /** A row of puffs across the width, as fractions: [x, lift, radius] of the bank's height. */
-function bankPuffs(width: number, height: number, top: number, seed: number): Puff[] {
-  const count = 9;
+function bankPuffs(width: number, height: number, top: number, seed: number, screen: number): Puff[] {
+  // About nine puffs to a screen's width, however wide the bank is.
+  const count = Math.max(9, Math.round((9 * width) / screen));
   return Array.from({ length: count }, (_, i) => {
     const odd = (i + seed) % 2 === 1;
     return [
@@ -27,26 +32,27 @@ type BankProps = {
   colors: [string, number, string, number];
   seed: number;
   tilt: Tilt;
-  depth: number;
+  explore: Explore;
 };
 
-function Bank({ top, height, colors, seed, tilt, depth }: BankProps) {
+function Bank({ top, height, colors, seed, tilt, explore }: BankProps) {
   const { width, height: screen } = useWindowDimensions();
   const id = useSvgId('bank');
-  const pad = 30;
+  // Wide enough that the bank never runs out while it slides with a drag.
+  const pad = Math.round(width * 0.75);
   const w = width + pad * 2;
   const d = useMemo(
     () =>
-      cloudPath(bankPuffs(w, height, top, seed), {
+      cloudPath(bankPuffs(w, height, top, seed, width), {
         base: screen + pad,
         shelf: { y: top + height * 0.55, from: 0, to: w },
         samples: 140,
       }),
-    [w, height, top, seed, screen],
+    [w, height, top, seed, screen, width, pad],
   );
-  const shift = useParallax(tilt, depth);
+  const shift = usePlane(tilt, explore, depth.clouds, true, pad - depth.clouds.tilt - 8);
   return (
-    <Animated.View style={[styles.layer, { width: w, height: screen + pad }, shift]}>
+    <Animated.View style={[styles.layer, { left: -pad, width: w, height: screen + pad }, shift]}>
       <Svg width={w} height={screen + pad}>
         <Defs>
           <LinearGradient id={id} x1="0" y1={top} x2="0" y2={top + height} gradientUnits="userSpaceOnUse">
@@ -99,10 +105,10 @@ function CornerCloud({ d }: { d: string }) {
  * are darker, larger and move more when the phone tilts, which is what makes
  * the sky feel deep. The tab bar's own cloud bank is the nearest of all.
  */
-export function DepthClouds({ tilt, horizon }: { tilt: Tilt; horizon: number }) {
+export function DepthClouds({ tilt, explore, horizon }: { tilt: Tilt; explore: Explore; horizon: number }) {
   const { width, height } = useWindowDimensions();
-  const nearL = useParallax(tilt, 26);
-  const nearR = useParallax(tilt, 30);
+  const nearL = useCorner(tilt, explore, 26);
+  const nearR = useCorner(tilt, explore, 30);
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Haze top={horizon - 200} height={200} />
@@ -112,7 +118,7 @@ export function DepthClouds({ tilt, horizon }: { tilt: Tilt; horizon: number }) 
         colors={['#6A5786', 0.75, '#4A3B66', 0.6]}
         seed={1}
         tilt={tilt}
-        depth={12}
+        explore={explore}
       />
       <Haze top={horizon - 40} height={120} />
       <Bank
@@ -121,7 +127,7 @@ export function DepthClouds({ tilt, horizon }: { tilt: Tilt; horizon: number }) 
         colors={['#45365F', 1, '#2E2448', 1]}
         seed={2}
         tilt={tilt}
-        depth={18}
+        explore={explore}
       />
       <Animated.View style={[styles.corner, { left: -30, top: height - 150 }, nearL]}>
         <CornerCloud d="M0 180 L0 70 Q30 10 90 26 Q130 0 170 34 Q190 70 180 180 Z" />
@@ -133,8 +139,72 @@ export function DepthClouds({ tilt, horizon }: { tilt: Tilt; horizon: number }) 
   );
 }
 
+/**
+ * A corner cloud is the nearest thing in the scene: it moves the most with
+ * tilt and drag, but only so far, so it stays a corner and never crosses
+ * the sky.
+ */
+function useCorner(tilt: Tilt, explore: Explore, tiltShift: number) {
+  const { reduceMotion } = useTheme();
+  return useAnimatedStyle(() => {
+    if (reduceMotion) return { transform: [] };
+    const reach = 36;
+    const dx = Math.max(-reach, Math.min(reach, explore.dx.get() * 0.3));
+    return {
+      transform: [
+        { translateX: dx - tilt.x.get() * tiltShift * 0.5 },
+        { translateY: -tilt.y.get() * tiltShift * 0.5 },
+      ],
+    };
+  });
+}
+
+/** Where the soft foreground motes sit, as fractions of the screen, and their size in points. */
+const MOTES = [
+  { x: 0.08, y: 0.22, r: 120, o: 0.07 },
+  { x: 0.95, y: 0.4, r: 140, o: 0.06 },
+  { x: 0.18, y: 0.62, r: 80, o: 0.05 },
+  { x: 0.88, y: 0.08, r: 70, o: 0.06 },
+  { x: 0.55, y: -0.02, r: 110, o: 0.05 },
+];
+
+/**
+ * A few very large, very faint plum motes close to the eye, out of focus,
+ * near the edges. They sit in front of everything in the sky and move the
+ * most, which is what makes the rest read as far away.
+ */
+export function NearMotes({ tilt, explore }: { tilt: Tilt; explore: Explore }) {
+  const { width, height } = useWindowDimensions();
+  const move = usePlane(tilt, explore, depth.near);
+  const pad = Math.round(width * 0.6);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.motes,
+        { left: -pad, top: -pad, width: width + pad * 2, height: height + pad * 2 },
+        move,
+      ]}>
+      <Canvas style={StyleSheet.absoluteFill}>
+        {MOTES.map((m, i) => (
+          <Circle
+            key={i}
+            cx={pad + m.x * width}
+            cy={pad + m.y * height}
+            r={m.r}
+            color="#8E6FA8"
+            opacity={m.o}>
+            <BlurMask blur={40} style="normal" />
+          </Circle>
+        ))}
+      </Canvas>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
-  layer: { position: 'absolute', left: -30, top: 0 },
+  layer: { position: 'absolute', top: 0 },
+  motes: { position: 'absolute' },
   haze: { position: 'absolute', left: 0 },
   corner: { position: 'absolute' },
 });

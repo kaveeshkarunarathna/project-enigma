@@ -177,3 +177,26 @@ export const motion = {
   /** One full twinkle cycle for the whole sky; each star twinkles a few times in it. */
   twinkleMs: 60_000,
 } as const;
+
+/**
+ * Depth of the Sky tab, back to front. `k` is each plane's share of the
+ * reader's drag and zoom (the reader's stars are 1, so taps land where they
+ * look). `tilt` is the most a plane shifts, in points, when the phone tilts:
+ * at most about 12 for anything with detail, more only for soft foreground
+ * shapes. Far planes are also smaller, dimmer, cooler and softer.
+ */
+export const depth = {
+  far: { k: 0.15, tilt: 1.8 },
+  milky: { k: 0.3, tilt: 4.2 },
+  // The moon is the farthest thing of all: it barely follows a drag, and never slides under the header.
+  moon: { k: 0.06, tilt: 5 },
+  stars: { k: 1, tilt: 7 },
+  clouds: { k: 1.2, tilt: 12 },
+  near: { k: 1.4, tilt: 16 },
+  /** How much the backdrop dims and softens behind a chosen star. */
+  focusDim: 0.35,
+  /** How much a chosen star grows. */
+  focusScale: 1.08,
+} as const;
+
+export type DepthPlane = { k: number; tilt: number };
