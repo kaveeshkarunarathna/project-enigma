@@ -8,7 +8,7 @@ import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { useDb } from '@/data/DataProvider';
 import { notifyChanged } from '@/data/live';
-import { DEV_TOOLS, loadSampleSky } from '@/features/dev/sampleData';
+import { DEV_TOOLS, loadFullSky, loadSampleSky } from '@/features/dev/sampleData';
 import { space } from '@/theme/tokens';
 
 /** Developer tools. Hidden in store builds. */
@@ -37,13 +37,23 @@ export default function DevScreen() {
             router.replace('/');
           }}
         />
+        <Text tone="mist">Or five months of reading, with three paths completed and a fourth halfway.</Text>
+        <Button
+          label="Load a full sky"
+          onPress={async () => {
+            setStatus('Loading…');
+            await loadFullSky(db);
+            setStatus('Done.');
+            router.replace('/');
+          }}
+        />
         <Button
           kind="quiet"
           label="Erase everything"
           onPress={async () => {
             await db.execAsync(
               `DELETE FROM journal_entries; DELETE FROM sessions; DELETE FROM nights;
-               DELETE FROM paths WHERE source = 'user'; DELETE FROM books; DELETE FROM settings;`,
+               DELETE FROM paths WHERE source = 'user'; UPDATE paths SET joined_at = NULL; DELETE FROM books; DELETE FROM settings;`,
             );
             notifyChanged('books', 'sessions', 'nights', 'journal', 'paths', 'settings');
             setStatus('Erased.');

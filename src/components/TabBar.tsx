@@ -1,5 +1,5 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import { BooksIcon, FeatherIcon, PathIcon, StarIcon, type Icon } from './icons';
+import { BooksIcon, FeatherIcon, MoonIcon, PathIcon, StarIcon, type Icon } from './icons';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import { space } from '@/theme/tokens';
 
 const TABS: Record<string, { label: string; icon: Icon }> = {
   index: { label: 'Sky', icon: StarIcon },
+  moonlog: { label: 'Moons', icon: MoonIcon },
   shelf: { label: 'Shelf', icon: BooksIcon },
   paths: { label: 'Paths', icon: PathIcon },
   journal: { label: 'Journal', icon: FeatherIcon },
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   tab: {
-    minWidth: 72,
+    minWidth: 64,
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',

@@ -57,7 +57,7 @@ export default function MoonLogScreen() {
     });
 
   return (
-    <Screen back title="Moon Log" caption="One moon a night. It fills as you read.">
+    <Screen title="Moon Log" caption="One moon a night. It fills as you read.">
       <View style={styles.week}>
         <WeekStrip week={week} today={today} size={34} />
         <Text tone="mist" style={styles.center}>

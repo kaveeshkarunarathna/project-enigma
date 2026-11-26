@@ -11,6 +11,7 @@ export default function TabsLayout() {
       // Tabs crossfade, like the sky changing, rather than sliding.
       screenOptions={{ headerShown: false, animation: reduceMotion ? 'none' : 'fade' }}>
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="moonlog" />
       <Tabs.Screen name="shelf" />
       <Tabs.Screen name="paths" />
       <Tabs.Screen name="journal" />
