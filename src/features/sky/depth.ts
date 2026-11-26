@@ -8,7 +8,13 @@ import type { DepthPlane } from '@/theme/tokens';
  * Where the reader has wandered: how far the star chart has been dragged
  * from where it opened, and how far it is zoomed. Planes take a share of it.
  */
-export type Explore = { dx: SharedValue<number>; dy: SharedValue<number>; scale: SharedValue<number> };
+export type Explore = {
+  dx: SharedValue<number>;
+  dy: SharedValue<number>;
+  scale: SharedValue<number>;
+  /** How far the reader has turned the sky, in radians. */
+  rot: SharedValue<number>;
+};
 
 /**
  * A plane of the sky: it follows the reader's drag and zoom by its share

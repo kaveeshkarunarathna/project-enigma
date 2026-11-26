@@ -140,6 +140,21 @@ export async function loadFullSky(db: Db, now = new Date()): Promise<void> {
     shelf.push({ id, pages: b.pages, page: 0, firstNight: null });
   }
   await addBook(db, { title: 'Dune', author: 'Frank Herbert', pageCount: 412 });
+  // Two books read on the side, outside any path, so the sky has planets.
+  const middlemarch = await addBook(db, { title: 'Middlemarch', author: 'George Eliot', pageCount: 880 });
+  await db.runAsync('UPDATE books SET status = ?, current_page = ?, started_at = ? WHERE id = ?', [
+    'reading',
+    310,
+    new Date(now.getTime() - 40 * 86_400_000).toISOString(),
+    middlemarch.id,
+  ]);
+  const piranesi = await addBook(db, { title: 'Piranesi', author: 'Susanna Clarke', pageCount: 272 });
+  await db.runAsync('UPDATE books SET status = ?, current_page = ?, started_at = ? WHERE id = ?', [
+    'reading',
+    60,
+    new Date(now.getTime() - 20 * 86_400_000).toISOString(),
+    piranesi.id,
+  ]);
   await addBook(db, { title: 'Circe', author: 'Madeline Miller', pageCount: 393 });
 
   let current = 0;

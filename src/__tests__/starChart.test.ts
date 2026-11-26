@@ -75,4 +75,16 @@ describe('star chart', () => {
     const seen = shift(star.z);
     expect(hitStarChart(chart, star.x + seen.x, star.y + seen.y, 4, shift)).toMatchObject({ kind: 'book' });
   });
+
+  it('shows books being read outside any constellation as planets, and finds them by tap', () => {
+    const more = [...shelf, { ...book('p', 'Planet book', 'reading'), pageCount: 400, currentPage: 100 }];
+    const chart = layoutStarChart(chartPaths(paths, more), more, viewport);
+    // 'Three' is read inside the Going path, so only the loose book becomes a planet.
+    expect(chart.planets.map((p) => p.bookId)).toEqual(['p']);
+    const planet = chart.planets[0];
+    expect(planet.fill).toBeCloseTo(0.25);
+    expect(planet.ringed).toBe(true);
+    const hit = hitStarChart(chart, planet.x + planet.r, planet.y, 4);
+    expect(hit).toEqual({ kind: 'planet', planet });
+  });
 });

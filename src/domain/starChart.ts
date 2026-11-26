@@ -64,11 +64,35 @@ export type ChartConstellation = {
   z: number;
 };
 
+/**
+ * A book being read that is not yet part of a constellation: a small world
+ * in the open sky. Its ring fills as the pages go by, and once the book is
+ * finished it becomes a star like the rest.
+ */
+export type ChartPlanet = {
+  bookId: string;
+  title: string;
+  author: string | null;
+  /** 0..1, page by page. */
+  fill: number;
+  x: number;
+  y: number;
+  r: number;
+  /** 0 to 1: picks the planet's colours, the same on every phone. */
+  hue: number;
+  /** Long books carry a ring, like the giants. */
+  ringed: boolean;
+  /** Which way its ring leans, in radians. */
+  lean: number;
+  z: number;
+};
+
 export type StarChart = {
   width: number;
   height: number;
   constellations: ChartConstellation[];
   lone: ChartStar[];
+  planets: ChartPlanet[];
   /** Books finished, in paths or not. */
   booksFinished: number;
 };
@@ -245,17 +269,52 @@ export function layoutStarChart(
     });
   }
 
+  // Books in hand that no constellation holds yet: small worlds between the stars.
+  const reading = shelf.filter((b) => b.status === 'reading' && !used.has(b.id));
+  const planets: ChartPlanet[] = [];
+  for (const b of reading) {
+    let x = 0;
+    let y = 0;
+    for (let attempt = 0; attempt < 32; attempt++) {
+      x = pad + 20 + hash(`${b.id}:px${attempt}`) * (width - pad * 2 - 40);
+      y = pad + 20 + hash(`${b.id}:py${attempt}`) * (height - pad * 2 - 40);
+      const clear =
+        !keepOut.some((k) => x > k.x - 20 && x < k.x + k.w + 20 && y > k.y - 20 && y < k.y + k.h + 20) &&
+        !lone.some((s) => Math.hypot(s.x - x, s.y - y) < 56) &&
+        !planets.some((p) => Math.hypot(p.x - x, p.y - y) < 88);
+      if (clear) break;
+    }
+    const pz = 0.2 + hash(`${b.id}:pz`) * 0.5;
+    const pages = b.pageCount && b.pageCount > 0 ? b.pageCount : 200;
+    planets.push({
+      bookId: b.id,
+      title: b.title,
+      author: b.author,
+      fill: pages ? clamp01((b.currentPage ?? 0) / pages) : 0,
+      x,
+      y,
+      r: (7 + Math.min(pages / 500, 1) * 5) * depthSize(pz),
+      hue: hash(`${b.id}:hue`),
+      ringed: pages >= 350,
+      lean: (hash(`${b.id}:lean`) - 0.5) * 0.8,
+      z: pz,
+    });
+  }
+
   return {
     width,
     height,
     constellations,
     lone,
+    planets,
     booksFinished: shelf.filter((b) => b.status === 'finished').length,
   };
 }
 
 export type ChartHit =
-  { kind: 'book'; star: ChartStar; pathId: string | null } | { kind: 'path'; pathId: string };
+  | { kind: 'book'; star: ChartStar; pathId: string | null }
+  | { kind: 'planet'; planet: ChartPlanet }
+  | { kind: 'path'; pathId: string };
 
 /**
  * What a tap at (x, y) in chart space lands on: a star first, then a
@@ -285,6 +344,11 @@ export function hitStarChart(
     if (d <= slop && (!best || d < best.d)) best = { star: s, pathId: null, d };
   }
   if (best) return { kind: 'book', star: best.star, pathId: best.pathId };
+  // A planet is a bigger target than a star.
+  for (const p of chart.planets) {
+    const o = shift(p.z);
+    if (Math.hypot(p.x + o.x - x, p.y + o.y - y) <= p.r + slop) return { kind: 'planet', planet: p };
+  }
   for (const c of chart.constellations) {
     const o = shift(c.z);
     const px = x - o.x;

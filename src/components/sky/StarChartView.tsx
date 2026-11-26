@@ -6,8 +6,11 @@ import {
   Group,
   Line,
   LinearGradient,
+  Path,
   RadialGradient,
+  Skia,
   vec,
+  type SkPath,
 } from '@shopify/react-native-skia';
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -30,6 +33,7 @@ import {
   depthShift,
   newestStar,
   type ChartConstellation,
+  type ChartPlanet,
   type ChartStar,
   type StarChart,
 } from '@/domain/starChart';
@@ -38,7 +42,7 @@ import type { Tilt } from '@/features/sky/useTilt';
 import { useTheme } from '@/theme/theme';
 import { depth, fontFamily, motion, type Palette } from '@/theme/tokens';
 
-export type ChartFocus = { pathId: string | null; bookId: string | null } | null;
+export type ChartFocus = { pathId: string | null; bookId: string | null; planet?: boolean } | null;
 
 /** How far the rest of the sky fades back while one thing is chosen. */
 const DIM = 0.78;
@@ -65,6 +69,7 @@ export function StarChartView({
   chosen,
   tilt,
   explore,
+  close,
 }: {
   chart: StarChart;
   focus: ChartFocus;
@@ -72,6 +77,8 @@ export function StarChartView({
   chosen: SharedValue<number>;
   tilt: Tilt;
   explore: Explore;
+  /** 0 on the chart, 1 while the chosen constellation is brought close and shown on its own. */
+  close: SharedValue<number>;
 }) {
   const { colors, reduceMotion } = useTheme();
 
@@ -120,8 +127,18 @@ export function StarChartView({
             look={look}
           />
         ))}
+        {chart.planets.map((p) => (
+          <PlanetNode
+            key={p.bookId}
+            p={p}
+            chosen={chosen}
+            picked={!!focus?.planet && focus.bookId === p.bookId}
+            look={look}
+          />
+        ))}
         {ordered.map(({ c, i }) => (
           <ConstellationNode
+            close={close}
             key={c.pathId}
             c={c}
             index={i}
@@ -135,6 +152,7 @@ export function StarChartView({
       </Canvas>
       {chart.constellations.map((c) => (
         <ConstellationName
+          close={close}
           key={c.pathId}
           c={c}
           chosen={chosen}
@@ -176,6 +194,7 @@ function useDimmed(chosen: SharedValue<number>, lit: boolean) {
 }
 
 function ConstellationNode({
+  close,
   c,
   index,
   clock,
@@ -184,6 +203,7 @@ function ConstellationNode({
   pickedBook,
   look,
 }: {
+  close: SharedValue<number>;
   c: ChartConstellation;
   index: number;
   clock: SharedValue<number>;
@@ -193,7 +213,9 @@ function ConstellationNode({
   look: Look;
 }) {
   const { colors, reduceMotion } = look;
-  const opacity = useDimmed(chosen, focused);
+  const dimmed = useDimmed(chosen, focused);
+  // Brought close, the constellation leaves the chart for its own view in front.
+  const opacity = useDerivedValue(() => dimmed.get() * (focused ? 1 - close.get() : 1));
   const shifts = useShifts(
     c.stars.map((s) => s.z),
     look,
@@ -380,7 +402,7 @@ function rgb(c: number[]): string {
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
-function withAlpha(color: string, alpha: number): string {
+export function withAlpha(color: string, alpha: number): string {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
   if (!m) return color;
   return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha.toFixed(3)})`;
@@ -390,7 +412,7 @@ function withAlpha(color: string, alpha: number): string {
  * The colour of a star's light: cool blue-white for a short book, warm
  * candle for a long one, and bluer the farther away it is.
  */
-function starColor(warmth: number, z: number): string {
+export function starColor(warmth: number, z: number): string {
   return rgb(mix(mix(COOL, WARM, warmth * (1 - 0.6 * z)), FAR, 0.4 * z));
 }
 
@@ -504,6 +526,117 @@ function LoneStar({
   );
 }
 
+/** Soft planet colours, lit side first: dusty rose, sea glass, sand and lavender. */
+const PLANET_TONES: [string, string, string][] = [
+  ['#F2C9C4', '#B97C8E', '#3A2547'],
+  ['#C8EDE2', '#6FA8A6', '#1E3346'],
+  ['#F5E2BF', '#C49A6C', '#3C2A35'],
+  ['#DCD3F6', '#8B7DC2', '#262250'],
+];
+
+/**
+ * A book being read, as a small world: lit from the upper left like the
+ * moon is, a thin atmosphere around it, and a leaning ring whose lit part
+ * is how far through the book the reader is. The back of the ring passes
+ * behind the planet and the front in front, so it reads as round.
+ */
+function PlanetNode({
+  p,
+  chosen,
+  picked,
+  look,
+}: {
+  p: ChartPlanet;
+  chosen: SharedValue<number>;
+  picked: boolean;
+  look: Look;
+}) {
+  const { colors } = look;
+  const dim = useDimmed(chosen, picked);
+  const shifts = useShifts([p.z], look);
+  const tone = PLANET_TONES[Math.floor(p.hue * PLANET_TONES.length) % PLANET_TONES.length];
+  const fade = depthFade(p.z);
+  const rx = p.r * (p.ringed ? 2.3 : 1.9);
+  const ry = rx * 0.28;
+  const oval = { x: p.x - rx, y: p.y - ry, width: rx * 2, height: ry * 2 };
+  const { backArc, frontArc, backLit, frontLit } = useMemo(() => {
+    const arc = (start: number, sweep: number) => {
+      const path = Skia.PathBuilder.Make();
+      if (sweep > 0) path.addArc(oval, start, sweep);
+      return path.build();
+    };
+    const sweep = 360 * p.fill;
+    return {
+      backArc: arc(180, 180),
+      frontArc: arc(0, 180),
+      // Progress runs from the left, over the back, and round the front.
+      backLit: arc(180, Math.min(sweep, 180)),
+      frontLit: arc(0, Math.max(0, sweep - 180)),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.x, p.y, rx, ry, p.fill]);
+  const lean = [
+    { translateX: p.x },
+    { translateY: p.y },
+    { rotate: p.lean },
+    { translateX: -p.x },
+    { translateY: -p.y },
+  ];
+  const ringW = p.ringed ? 2.4 : 1;
+  const ring = (path: SkPath, lit: boolean) => (
+    <Path
+      path={path}
+      style="stroke"
+      strokeWidth={lit ? ringW + 0.4 : ringW}
+      strokeCap="round"
+      color={lit ? colors.candlelight : withAlpha(colors.starlight, p.ringed ? 0.22 : 0.16)}
+      opacity={lit ? 0.9 * fade : fade}
+    />
+  );
+  return (
+    <Group opacity={dim}>
+      <Shifted shifts={shifts} i={0}>
+        <Group transform={lean}>
+          {ring(backArc, false)}
+          {ring(backLit, true)}
+        </Group>
+        {/* A thin atmosphere. */}
+        <Circle cx={p.x} cy={p.y} r={p.r * 2.1} opacity={0.5 * fade} blendMode="screen">
+          <RadialGradient
+            c={vec(p.x, p.y)}
+            r={p.r * 2.1}
+            colors={[withAlpha(tone[1], 0.5), withAlpha(tone[1], 0)]}
+            positions={[0.45, 1]}
+          />
+        </Circle>
+        <Circle cx={p.x} cy={p.y} r={p.r} opacity={0.6 + 0.4 * fade}>
+          <RadialGradient
+            c={vec(p.x - p.r * 0.4, p.y - p.r * 0.45)}
+            r={p.r * 1.7}
+            colors={[tone[0], tone[1], tone[2]]}
+            positions={[0, 0.45, 1]}
+          />
+        </Circle>
+        <Group transform={lean}>
+          {ring(frontArc, false)}
+          {ring(frontLit, true)}
+        </Group>
+        {picked ? (
+          <Circle
+            cx={p.x}
+            cy={p.y}
+            r={rx + 6}
+            style="stroke"
+            strokeWidth={1}
+            color={colors.aurora}
+            opacity={0.8}
+          />
+        ) : null}
+      </Shifted>
+    </Group>
+  );
+}
+
 /**
  * A constellation's name, lettered under it in italic serif the way star
  * atlases name theirs. A finished shape is named in full; one still being
@@ -512,11 +645,13 @@ function LoneStar({
  * move with it.
  */
 function ConstellationName({
+  close,
   c,
   chosen,
   focused,
   look,
 }: {
+  close: SharedValue<number>;
   c: ChartConstellation;
   chosen: SharedValue<number>;
   focused: boolean;
@@ -531,8 +666,9 @@ function ConstellationName({
       ? { x: 0, y: 0 }
       : depthShift(c.z, explore.dx.get(), explore.dy.get(), tilt.x.get(), tilt.y.get());
     return {
-      opacity: (focused ? 1 : 1 - DIM * chosen.get()) * fade,
-      transform: [{ translateX: o.x }, { translateY: o.y }],
+      opacity: (focused ? 1 - close.get() : 1 - DIM * chosen.get()) * fade,
+      // Names stay upright however the sky is turned.
+      transform: [{ translateX: o.x }, { translateY: o.y }, { rotate: `${-explore.rot.get()}rad` }],
     };
   });
   return (
