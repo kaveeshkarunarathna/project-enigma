@@ -75,6 +75,7 @@ import { bookCaption } from '@/features/books/format';
 import { useThisWeek } from '@/features/moonlog/useMoonLog';
 import { useTonightsPath } from '@/features/paths/useTonightsPath';
 import { useStarChart } from '@/features/sky/useStarChart';
+import { SKY_CLOUDS } from '@/features/sky/look';
 import { useTilt, type Tilt } from '@/features/sky/useTilt';
 import { useTheme } from '@/theme/theme';
 import { depth, fontFamily, motion, radius, space } from '@/theme/tokens';
@@ -429,7 +430,7 @@ export default function SkyScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.night }]}>
       {tilt.source}
-      <Atmosphere mood={mood} tilt={tilt} explore={explore} focus={focusT} />
+      <Atmosphere mood={mood} tilt={tilt} explore={explore} focus={focusT} showMoon={SKY_CLOUDS} />
 
       <GestureDetector gesture={gesture}>
         <View
@@ -463,8 +464,8 @@ export default function SkyScreen() {
         </View>
       </GestureDetector>
 
-      <DepthClouds tilt={tilt} explore={explore} horizon={horizon} />
-      <NearMotes tilt={tilt} explore={explore} />
+      {SKY_CLOUDS ? <DepthClouds tilt={tilt} explore={explore} horizon={horizon} /> : null}
+      {SKY_CLOUDS ? <NearMotes tilt={tilt} explore={explore} /> : null}
       <Vignette />
 
       {empty ? (
@@ -770,9 +771,7 @@ function StarGlance({ star, onClose, tilt }: { star: ChartStar; onClose: () => v
 /** A chosen planet: a book being read, and how far through it the reader is. */
 function PlanetGlance({ planet, onClose, tilt }: { planet: ChartPlanet; onClose: () => void; tilt: Tilt }) {
   const { colors } = useTheme();
-  const caption = [planet.author, `${Math.round(planet.fill * 100)}% read`]
-    .filter(Boolean)
-    .join(', ');
+  const caption = [planet.author, `${Math.round(planet.fill * 100)}% read`].filter(Boolean).join(', ');
   return (
     <Rise>
       <Glass tilt={tilt} style={[styles.glassPad, styles.glanceRow]}>

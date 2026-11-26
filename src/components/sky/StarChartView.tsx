@@ -457,9 +457,35 @@ function StarDot({ s, picked, look }: { s: ChartStar; picked: boolean; look: Loo
           {soft > 0 ? <BlurMask blur={soft} style="solid" /> : null}
         </Circle>
       )}
+      {s.state === 'finished' ? <Sparkle s={s} color={light} fade={fade} /> : null}
       {lit ? (
         <Circle cx={s.x} cy={s.y} r={s.r * 0.42} color="#FFF9EE" opacity={0.95 * (1 - 0.5 * s.z)} />
       ) : null}
+    </Group>
+  );
+}
+
+/**
+ * A finished book's star catches the eye like the bright stars of deep
+ * space: thin spikes up, down and to the sides, fading to nothing. Nearer
+ * stars have longer spikes.
+ */
+function Sparkle({ s, color, fade }: { s: ChartStar; color: string; fade: number }) {
+  const len = s.r * (3.2 + 2.4 * (1 - s.z));
+  const clear = withAlpha('#FFFFFF', 0);
+  const bar = (dx: number, dy: number) => {
+    const a = vec(s.x - dx * len, s.y - dy * len);
+    const b = vec(s.x + dx * len, s.y + dy * len);
+    return (
+      <Line p1={a} p2={b} strokeWidth={0.8} strokeCap="round">
+        <LinearGradient start={a} end={b} colors={[clear, color, clear]} positions={[0, 0.5, 1]} />
+      </Line>
+    );
+  };
+  return (
+    <Group opacity={0.6 * fade}>
+      {bar(1, 0)}
+      {bar(0, 0.85)}
     </Group>
   );
 }

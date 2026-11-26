@@ -4,6 +4,12 @@ The Sky should feel like a small planetarium you hold, not a flat picture.
 
 ![The sky, a planet chosen, a constellation brought close, and turned by hand](img/25-sky-3d.png)
 
+## Deep space
+
+![Deep space in the night's own colours](img/25-deep-space.png)
+
+The Sky's backdrop is deep space in the app's own indigo and plum: a nebula of folded gas (noise warped through itself) with lavender wisps and dark dust lanes, a dense field of tiny stars, and a few bright stars with four-pointed sparkles. Finished books' stars carry the same sparkle. The storybook moon and cloud banks are left off the Sky (`SKY_CLOUDS` in `src/features/sky/look.ts` brings them back); other screens keep their clouds. Everything is baked into still images once, so it costs nothing per frame.
+
 ## What the reader sees
 
 - **Constellations brought close.** Tap a constellation (or one of its stars) and it leaves the chart and comes forward as a small solid. Its stars keep their places but gain real depth, so it tips back to show its volume and sways very slowly while it rests. Drag to turn it like an object in the hand; a flick keeps it turning a little and it settles back to its resting tilt. Pinch to bring it nearer.

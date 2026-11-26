@@ -8,6 +8,7 @@ import { CloudBank } from './art/CloudBank';
 import { Glass } from './Glass';
 import { Pressable } from './Pressable';
 import { Text } from './Text';
+import { SKY_CLOUDS } from '@/features/sky/look';
 import { useTheme } from '@/theme/theme';
 import { space } from '@/theme/tokens';
 
@@ -46,7 +47,10 @@ export function TabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
     <View
       pointerEvents="box-none"
       style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
-      <CloudBank height={96 + insets.bottom} />
+      {/* The Sky is deep space all the way down; other screens keep their clouds. */}
+      {state.routes[state.index]?.name === 'index' && !SKY_CLOUDS ? null : (
+        <CloudBank height={96 + insets.bottom} />
+      )}
       <Glass radius={30} style={styles.glass}>
         <View accessibilityRole="tablist" style={styles.bar}>
           <Animated.View pointerEvents="none" style={[styles.indicator, indicator]}>
