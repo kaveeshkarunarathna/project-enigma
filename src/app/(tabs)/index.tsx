@@ -1,12 +1,13 @@
 import { router, useIsFocused } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
   GestureDetector,
   useCompetingGestures,
   usePanGesture,
   usePinchGesture,
+  useRotationGesture,
   useSimultaneousGestures,
   useTapGesture,
 } from 'react-native-gesture-handler';
@@ -15,14 +16,18 @@ import Animated, {
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
+  cancelAnimation,
   withDecay,
+  withDelay,
+  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
 import { IconButton } from '@/components/IconButton';
-import { BarcodeIcon, ExportIcon, GearIcon, LampIcon } from '@/components/icons';
+import { Glass } from '@/components/Glass';
+import { BarcodeIcon, ExportIcon, GearIcon, LampIcon, XIcon } from '@/components/icons';
 import { Rise } from '@/components/motion/Rise';
 import { Pressable } from '@/components/Pressable';
 import { TAB_BAR_SPACE } from '@/components/Screen';
@@ -30,6 +35,7 @@ import { Atmosphere, Vignette } from '@/components/sky/Atmosphere';
 import { DepthClouds, NearMotes } from '@/components/sky/DepthClouds';
 import { BookStar } from '@/components/sky/BookStar';
 import { Constellation } from '@/components/sky/Constellation';
+import { ConstellationCloseUp } from '@/components/sky/ConstellationCloseUp';
 import { Ignite } from '@/components/sky/Ignite';
 import { StarChartView, type ChartFocus } from '@/components/sky/StarChartView';
 import { WeekStrip } from '@/components/sky/WeekStrip';
@@ -50,16 +56,27 @@ import {
   hitStarChart,
   homeConstellation,
   type ChartConstellation,
+  type ChartPlanet,
   type ChartStar,
   type StarChart,
 } from '@/domain/starChart';
+import {
+  closeUpScale,
+  hitProjected,
+  orbitRadius,
+  PITCH_LIMIT,
+  project,
+  REST_PITCH,
+  solidOfBox,
+} from '@/domain/orbit';
 import { skyMood } from '@/domain/skyMood';
 import { addDays } from '@/domain/time';
 import { bookCaption } from '@/features/books/format';
 import { useThisWeek } from '@/features/moonlog/useMoonLog';
 import { useTonightsPath } from '@/features/paths/useTonightsPath';
 import { useStarChart } from '@/features/sky/useStarChart';
-import { useTilt } from '@/features/sky/useTilt';
+import { SKY_CLOUDS } from '@/features/sky/look';
+import { useTilt, type Tilt } from '@/features/sky/useTilt';
 import { useTheme } from '@/theme/theme';
 import { depth, fontFamily, motion, radius, space } from '@/theme/tokens';
 
@@ -108,7 +125,7 @@ export default function SkyScreen() {
   const W = chart?.width ?? width;
   const H = chart?.height ?? skyHeight;
   const stars = chart ? chart.constellations.reduce((n, c) => n + c.finished, 0) + chart.lone.length : 0;
-  const empty = !!chart && stars === 0;
+  const empty = !!chart && stars === 0 && chart.planets.length === 0;
 
   // A soft tap when a constellation is completed while the sky is open. Once,
   // and never for the ones already complete when it opened.
@@ -138,7 +155,71 @@ export default function SkyScreen() {
   const homeY = useSharedValue(0);
   const dx = useDerivedValue(() => tx.get() - homeX.get());
   const dy = useDerivedValue(() => ty.get() - homeY.get());
-  const explore = useMemo(() => ({ dx, dy, scale }), [dx, dy, scale]);
+  // How far the reader has turned the sky with two fingers.
+  const rot = useSharedValue(0);
+  const startRot = useSharedValue(0);
+  const explore = useMemo(() => ({ dx, dy, scale, rot }), [dx, dy, scale, rot]);
+
+  // A constellation brought close: its own camera, turned by the reader's finger.
+  const closeId = focus?.pathId ?? null;
+  const closeC = closeId ? (chart?.constellations.find((c) => c.pathId === closeId) ?? null) : null;
+  const closeMode = useSharedValue(0);
+  const yaw = useSharedValue(0);
+  const pitch = useSharedValue(0);
+  const zoom = useSharedValue(1);
+  const startZoom = useSharedValue(1);
+  const closeOpen = useSharedValue(0);
+  const lit = useSharedValue(0);
+  // One slow sway either way while it rests, so it reads as a thing hanging in space.
+  const sway = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion || !closeId) {
+      sway.set(0);
+      return;
+    }
+    sway.set(withRepeat(withTiming(1, { duration: 32_000, easing: Easing.linear }), -1, false));
+    return () => cancelAnimation(sway);
+  }, [reduceMotion, closeId, sway]);
+  const yawSeen = useDerivedValue(
+    () => yaw.get() + 0.16 * Math.sin(2 * Math.PI * sway.get()) * closeOpen.get(),
+  );
+  const camera = useMemo(
+    () => ({ yaw: yawSeen, pitch, zoom, open: closeOpen, lit }),
+    [yawSeen, pitch, zoom, closeOpen, lit],
+  );
+  const closeCentre = useMemo(() => ({ x: width / 2, y: clearHeight / 2 }), [width, clearHeight]);
+  const closeK = closeC ? closeUpScale(closeC.box, { width, height: clearHeight }) : 1;
+  const closeStars = closeC?.stars.length ?? 0;
+  // Brought close only when the constellation changes, not when one of its stars is chosen.
+  useEffect(() => {
+    if (!closeId) {
+      closeMode.set(0);
+      closeOpen.set(reduceMotion ? 0 : withTiming(0, { duration: motion.fade }));
+      return;
+    }
+    closeMode.set(1);
+    yaw.set(0);
+    if (reduceMotion) {
+      closeOpen.set(1);
+      zoom.set(closeK);
+      pitch.set(REST_PITCH);
+      lit.set(closeStars);
+      return;
+    }
+    // It starts as it looks on the chart and comes forward, tipping back to show its depth.
+    const ease = { duration: motion.enter * 1.8, easing: Easing.inOut(Easing.cubic) };
+    zoom.set(scale.get());
+    pitch.set(0);
+    lit.set(0);
+    closeOpen.set(withTiming(1, { duration: motion.enter }));
+    zoom.set(withTiming(closeK, ease));
+    pitch.set(withTiming(REST_PITCH, ease));
+    // Then its stars light one after another, the way the path was read.
+    lit.set(
+      withDelay(motion.enter, withTiming(closeStars, { duration: 340 * closeStars, easing: Easing.linear })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeId, reduceMotion]);
   // 0 with nothing chosen, 1 with a star or constellation chosen.
   const focusT = useSharedValue(0);
   useEffect(() => {
@@ -176,8 +257,10 @@ export default function SkyScreen() {
       const home = homeConstellation(chart);
       const cx = home ? home.box.x + home.box.w / 2 : W / 2;
       const cy = home ? home.box.y + home.box.h / 2 : H / 2;
-      if (animate) moveTo(cx, cy, 1);
-      else {
+      if (animate) {
+        moveTo(cx, cy, 1);
+        rot.set(reduceMotion ? 0 : withTiming(0, { duration: motion.enter * 1.6 }));
+      } else {
         const to = centreOn(cx, cy, 1);
         tx.set(to.x);
         ty.set(to.y);
@@ -186,7 +269,7 @@ export default function SkyScreen() {
         scale.set(1);
       }
     },
-    [chart, W, H, moveTo, centreOn, tx, ty, scale, homeX, homeY],
+    [chart, W, H, moveTo, centreOn, tx, ty, scale, homeX, homeY, rot, reduceMotion],
   );
   // Open on the constellation finished last, once the chart is known.
   const placed = useRef(false);
@@ -201,6 +284,12 @@ export default function SkyScreen() {
     minDistance: 6,
     onUpdate: (e) => {
       'worklet';
+      if (closeMode.get() === 1) {
+        // Up close, a drag turns the constellation like an object in the hand.
+        yaw.set(yaw.get() + e.changeX * 0.009);
+        pitch.set(Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch.get() + e.changeY * 0.006)));
+        return;
+      }
       const s = scale.get();
       tx.set(clampPan(tx.get() + e.changeX, width, W, s));
       ty.set(clampPan(ty.get() + e.changeY, clearHeight, H, s));
@@ -208,6 +297,12 @@ export default function SkyScreen() {
     onDeactivate: (e) => {
       'worklet';
       if (reduceMotion) return;
+      if (closeMode.get() === 1) {
+        // A flick keeps it turning a little, and it settles back to its resting tip.
+        yaw.set(withDecay({ velocity: e.velocityX * 0.009, deceleration: 0.993 }));
+        pitch.set(withTiming(REST_PITCH, { duration: 900, easing: Easing.inOut(Easing.cubic) }));
+        return;
+      }
       // A gentle glide after a flick, slowing to rest inside the chart.
       const s = scale.get();
       const bx = [clampPan(-1e6, width, W, s), clampPan(1e6, width, W, s)] as [number, number];
@@ -220,13 +315,31 @@ export default function SkyScreen() {
     onBegin: () => {
       'worklet';
       startScale.set(scale.get());
+      startZoom.set(zoom.get());
     },
     onUpdate: (e) => {
       'worklet';
+      if (closeMode.get() === 1) {
+        zoom.set(Math.max(0.6, Math.min(3, startZoom.get() * e.scale)));
+        return;
+      }
       const s = Math.max(0.6, Math.min(2.4, startScale.get() * e.scale));
       scale.set(s);
       tx.set(clampPan(tx.get(), width, W, s));
       ty.set(clampPan(ty.get(), clearHeight, H, s));
+    },
+  });
+
+  // Two fingers turn the whole sky, like the dome of a planetarium.
+  const rotate = useRotationGesture({
+    onBegin: () => {
+      'worklet';
+      startRot.set(rot.get());
+    },
+    onUpdate: (e) => {
+      'worklet';
+      if (closeMode.get() === 1) return;
+      rot.set(startRot.get() + e.rotation);
     },
   });
 
@@ -239,18 +352,44 @@ export default function SkyScreen() {
     maxDistance: 8,
     onActivate: (e) => {
       if (!chart) return;
+      if (closeC) {
+        // Up close: a star, by where it is seen now; open sky lets the constellation go back.
+        const k = zoom.get();
+        const seen = solidOfBox(closeC.stars, closeC.box).map((p) => {
+          const q = project(p, yawSeen.get(), pitch.get());
+          return { x: closeCentre.x + q.x * k, y: closeCentre.y + q.y * k };
+        });
+        const i = hitProjected(seen, e.x, e.y, 30);
+        if (i >= 0) {
+          const star = closeC.stars[i];
+          choose({ pathId: closeC.pathId, bookId: star.bookId ?? `entry:${star.title}` });
+          return;
+        }
+        const d = Math.hypot(e.x - closeCentre.x, e.y - closeCentre.y);
+        if (d < orbitRadius(closeC.box) * k * 0.9) setFocus({ pathId: closeC.pathId, bookId: null });
+        else choose(null);
+        return;
+      }
       const s = scale.get();
       const ox = tx.get() - tilt.x.get() * depth.stars.tilt;
       const oy = ty.get() - tilt.y.get() * depth.stars.tilt;
-      // Undo the layer's move and zoom to find the point on the chart.
-      const px = W / 2 + (e.x - ox - W / 2) / s;
-      const py = H / 2 + (e.y - oy - H / 2) / s;
+      // Undo the layer's move, turn and zoom to find the point on the chart.
+      const r = -rot.get();
+      const vx = e.x - ox - W / 2;
+      const vy = e.y - oy - H / 2;
+      const px = W / 2 + (vx * Math.cos(r) - vy * Math.sin(r)) / s;
+      const py = H / 2 + (vx * Math.sin(r) + vy * Math.cos(r)) / s;
       // Constellations sit at their own depths, shifted by tilt and drag.
       const shift = (z: number) =>
         reduceMotion ? { x: 0, y: 0 } : depthShift(z, dx.get(), dy.get(), tilt.x.get(), tilt.y.get());
       const hit = hitStarChart(chart, px, py, 26 / s, shift);
       if (!hit) {
         choose(null);
+        return;
+      }
+      if (hit.kind === 'planet') {
+        choose({ pathId: null, bookId: hit.planet.bookId, planet: true });
+        moveTo(hit.planet.x, hit.planet.y, Math.max(s, 1.15));
         return;
       }
       if (hit.kind === 'path') {
@@ -271,27 +410,27 @@ export default function SkyScreen() {
       goHome(true);
     },
   });
-  const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch), reset, tap);
+  const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch, rotate), reset, tap);
   const chartLayer = useAnimatedStyle(() => ({
     transform: [
       { translateX: tx.get() - tilt.x.get() * depth.stars.tilt },
       { translateY: ty.get() - tilt.y.get() * depth.stars.tilt },
       { scale: scale.get() },
+      { rotate: `${rot.get()}rad` },
     ],
   }));
 
-  const chosenPath = focus?.pathId ? chart?.constellations.find((c) => c.pathId === focus.pathId) : null;
-  const chosenStar = focus?.bookId
-    ? [...(chosenPath?.stars ?? []), ...(chart?.lone ?? [])].find(
-        (s) => (s.bookId ?? `entry:${s.title}`) === focus.bookId,
-      )
-    : null;
+  const chosenPlanet = focus?.planet ? chart?.planets.find((p) => p.bookId === focus.bookId) : null;
+  const chosenStar =
+    focus?.bookId && !focus.planet && !focus.pathId
+      ? chart?.lone.find((s) => s.bookId === focus.bookId)
+      : null;
   const constellationsDone = chart?.constellations.filter((c) => c.complete).length ?? 0;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.night }]}>
       {tilt.source}
-      <Atmosphere mood={mood} tilt={tilt} explore={explore} focus={focusT} />
+      <Atmosphere mood={mood} tilt={tilt} explore={explore} focus={focusT} showMoon={SKY_CLOUDS} />
 
       <GestureDetector gesture={gesture}>
         <View
@@ -301,14 +440,32 @@ export default function SkyScreen() {
           accessibilityLabel={chartSummary(chart)}>
           <Animated.View style={[styles.chart, { width: W, height: H }, chartLayer]}>
             {chart && !empty ? (
-              <StarChartView chart={chart} focus={focus} chosen={focusT} tilt={tilt} explore={explore} />
+              <StarChartView
+                chart={chart}
+                focus={focus}
+                chosen={focusT}
+                tilt={tilt}
+                explore={explore}
+                close={closeOpen}
+              />
             ) : null}
           </Animated.View>
+          {closeC ? (
+            <ConstellationCloseUp
+              key={closeC.pathId}
+              c={closeC}
+              width={width}
+              height={skyHeight}
+              centre={closeCentre}
+              camera={camera}
+              picked={focus?.bookId ?? null}
+            />
+          ) : null}
         </View>
       </GestureDetector>
 
-      <DepthClouds tilt={tilt} explore={explore} horizon={horizon} />
-      <NearMotes tilt={tilt} explore={explore} />
+      {SKY_CLOUDS ? <DepthClouds tilt={tilt} explore={explore} horizon={horizon} /> : null}
+      {SKY_CLOUDS ? <NearMotes tilt={tilt} explore={explore} /> : null}
       <Vignette />
 
       {empty ? (
@@ -357,14 +514,30 @@ export default function SkyScreen() {
       </View>
 
       {!loading ? (
-        <View style={[styles.glance, { top: horizon + 6 }]}>
-          {chosenPath && !chosenStar ? (
-            <ConstellationGlance key={chosenPath.pathId} c={chosenPath} onClose={() => choose(null)} />
+        <View style={[styles.glance, { bottom: Math.max(insets.bottom, space.md) + 72 }]}>
+          {closeC ? (
+            <ConstellationGlance
+              key={closeC.pathId}
+              c={closeC}
+              picked={focus?.bookId ?? null}
+              onPick={(bookId) => setFocus({ pathId: closeC.pathId, bookId })}
+              onClose={() => choose(null)}
+              tilt={tilt}
+            />
+          ) : chosenPlanet ? (
+            <PlanetGlance
+              key={chosenPlanet.bookId}
+              planet={chosenPlanet}
+              onClose={() => choose(null)}
+              tilt={tilt}
+            />
           ) : chosenStar ? (
-            <StarGlance key={focus?.bookId} star={chosenStar} onClose={() => choose(null)} />
+            <StarGlance key={focus?.bookId} star={chosenStar} onClose={() => choose(null)} tilt={tilt} />
           ) : (
             <Ignite>
-              {book ? <BookGlance book={book} onOpen={() => setSheet(true)} /> : <NoBookGlance />}
+              <Glass tilt={tilt} style={styles.glassPad}>
+                {book ? <BookGlance book={book} onOpen={() => setSheet(true)} /> : <NoBookGlance />}
+              </Glass>
             </Ignite>
           )}
         </View>
@@ -426,33 +599,119 @@ function finishedLabel(iso: string | null): string | null {
   return `finished ${d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
 }
 
-/** A chosen constellation, resting on the clouds where the book in hand usually sits. */
-function ConstellationGlance({ c, onClose }: { c: ChartConstellation; onClose: () => void }) {
+/**
+ * A constellation brought close: a pane of glass under it with its name, how
+ * much of it is lit, and its books as a row of small stars. Choosing a book
+ * here or tapping its star picks it in the close-up.
+ */
+function ConstellationGlance({
+  c,
+  picked,
+  onPick,
+  onClose,
+  tilt,
+}: {
+  c: ChartConstellation;
+  picked: string | null;
+  onPick: (bookId: string | null) => void;
+  onClose: () => void;
+  tilt: Tilt;
+}) {
   const { colors } = useTheme();
+  const star = picked ? c.stars.find((s) => (s.bookId ?? `entry:${s.title}`) === picked) : null;
   const caption = c.complete
     ? [`All ${c.total} stars lit`, finishedLabel(c.completedAt)].filter(Boolean).join(', ')
     : `${c.finished} of ${c.total} stars lit. ${nextStar(c)}`;
   return (
-    <Rise style={styles.glanceRow}>
-      <View style={styles.inHandText}>
-        <Text style={styles.chosenTitle} numberOfLines={2}>
-          {c.title}
-        </Text>
-        <Text variant="caption" numberOfLines={2}>
-          {caption}
-        </Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${c.title}`}
-        onPress={() => {
-          onClose();
-          router.push({ pathname: '/paths/[id]', params: { id: c.pathId } });
-        }}
-        style={[styles.open, { borderColor: colors.starlight }]}>
-        <Text variant="button">Open path</Text>
-      </Pressable>
+    <Rise>
+      <Glass tilt={tilt} style={styles.glassPad}>
+        <View style={styles.glanceHead}>
+          <View style={styles.inHandText}>
+            <Text style={styles.chosenTitle} numberOfLines={2}>
+              {c.title}
+            </Text>
+            <Text variant="caption" numberOfLines={1}>
+              {star ? starCaption(star) : caption}
+            </Text>
+          </View>
+          <IconButton icon={XIcon} label="Back to the sky" tone="mist" size={20} onPress={onClose} />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+          accessibilityLabel={`Books in ${c.title}`}>
+          {c.stars.map((s, i) => {
+            const id = s.bookId ?? `entry:${s.title}`;
+            const on = id === picked;
+            return (
+              <Pressable
+                key={`${id}${i}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${s.title}, ${starStatus(s)}`}
+                onPress={() => onPick(on ? null : id)}
+                style={[styles.chip, { borderColor: on ? colors.aurora : 'rgba(234, 219, 193, 0.14)' }]}>
+                <StarBead s={s} />
+                <Text
+                  variant="caption"
+                  tone={on ? 'starlight' : 'mist'}
+                  numberOfLines={1}
+                  style={styles.chipText}>
+                  {s.title}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <View style={styles.glanceActions}>
+          {star?.bookId ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${star.title}`}
+              onPress={() => {
+                onClose();
+                router.push({ pathname: '/book/[id]', params: { id: star.bookId! } });
+              }}
+              style={[styles.open, { borderColor: colors.starlight }]}>
+              <Text variant="button">Open book</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${c.title}`}
+            onPress={() => {
+              onClose();
+              router.push({ pathname: '/paths/[id]', params: { id: c.pathId } });
+            }}
+            style={[styles.open, { borderColor: star ? 'rgba(234, 219, 193, 0.3)' : colors.starlight }]}>
+            <Text variant="button">Open path</Text>
+          </Pressable>
+        </View>
+      </Glass>
     </Rise>
+  );
+}
+
+/** A book's star in the row: lit, part lit, or an outline still waiting. */
+function StarBead({ s }: { s: ChartStar }) {
+  const { colors } = useTheme();
+  const lit = s.state === 'finished';
+  const reading = s.state === 'reading';
+  return (
+    <View style={styles.bead}>
+      {lit ? <View style={[styles.beadGlow, { backgroundColor: colors.candlelight }]} /> : null}
+      <View
+        style={[
+          styles.beadCore,
+          lit
+            ? { backgroundColor: colors.starlight }
+            : reading
+              ? { backgroundColor: colors.candlelight, opacity: 0.35 + 0.6 * s.fill }
+              : { borderWidth: 1, borderColor: colors.mist },
+        ]}
+      />
+    </View>
   );
 }
 
@@ -461,41 +720,81 @@ function nextStar(c: ChartConstellation): string {
   return next ? `Next: ${next.title}.` : '';
 }
 
-/** A chosen book star. */
-function StarGlance({ star, onClose }: { star: ChartStar; onClose: () => void }) {
-  const { colors } = useTheme();
-  const status =
-    star.state === 'finished'
+function starStatus(star: ChartStar): string {
+  return (
+    (star.state === 'finished'
       ? finishedLabel(star.finishedAt)
       : star.state === 'reading'
         ? `${Math.round(star.fill * 100)}% read`
         : star.state === 'shelf'
           ? 'on your shelf'
-          : 'not on your shelf yet';
-  // The constellation is in view and named, so the caption stays short.
-  const caption = [star.author, status].filter(Boolean).join(', ');
+          : 'not on your shelf yet') ?? 'read'
+  );
+}
+
+function starCaption(star: ChartStar): string {
+  return [star.title, star.author, starStatus(star)].filter(Boolean).join(', ');
+}
+
+/** A chosen lone star. */
+function StarGlance({ star, onClose, tilt }: { star: ChartStar; onClose: () => void; tilt: Tilt }) {
+  const { colors } = useTheme();
+  const caption = [star.author, starStatus(star)].filter(Boolean).join(', ');
   return (
-    <Rise style={styles.glanceRow}>
-      <View style={styles.inHandText}>
-        <Text variant="heading" numberOfLines={2}>
-          {star.title}
-        </Text>
-        <Text variant="caption" numberOfLines={2}>
-          {caption}
-        </Text>
-      </View>
-      {star.bookId ? (
+    <Rise>
+      <Glass tilt={tilt} style={[styles.glassPad, styles.glanceRow]}>
+        <View style={styles.inHandText}>
+          <Text variant="heading" numberOfLines={2}>
+            {star.title}
+          </Text>
+          <Text variant="caption" numberOfLines={2}>
+            {caption}
+          </Text>
+        </View>
+        {star.bookId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${star.title}`}
+            onPress={() => {
+              onClose();
+              router.push({ pathname: '/book/[id]', params: { id: star.bookId! } });
+            }}
+            style={[styles.open, { borderColor: colors.starlight }]}>
+            <Text variant="button">Open book</Text>
+          </Pressable>
+        ) : null}
+      </Glass>
+    </Rise>
+  );
+}
+
+/** A chosen planet: a book being read, and how far through it the reader is. */
+function PlanetGlance({ planet, onClose, tilt }: { planet: ChartPlanet; onClose: () => void; tilt: Tilt }) {
+  const { colors } = useTheme();
+  const caption = [planet.author, `${Math.round(planet.fill * 100)}% read`].filter(Boolean).join(', ');
+  return (
+    <Rise>
+      <Glass tilt={tilt} style={[styles.glassPad, styles.glanceRow]}>
+        <View style={styles.inHandText}>
+          <Text variant="label">In orbit</Text>
+          <Text variant="heading" numberOfLines={2}>
+            {planet.title}
+          </Text>
+          <Text variant="caption" numberOfLines={2}>
+            {caption}
+          </Text>
+        </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Open ${star.title}`}
+          accessibilityLabel={`Light the lamp for ${planet.title}`}
           onPress={() => {
             onClose();
-            router.push({ pathname: '/book/[id]', params: { id: star.bookId! } });
+            router.push({ pathname: '/lamp', params: { bookId: planet.bookId } });
           }}
-          style={[styles.open, { borderColor: colors.starlight }]}>
-          <Text variant="button">Open book</Text>
+          style={[styles.lamp, { backgroundColor: colors.starlight }]}>
+          <LampIcon size={24} weight="regular" color={colors.onStarlight} />
         </Pressable>
-      ) : null}
+      </Glass>
     </Rise>
   );
 }
@@ -777,7 +1076,7 @@ const styles = StyleSheet.create({
   },
   chosenTitle: { fontFamily: fontFamily.serifItalic, fontSize: 20, lineHeight: 26 },
   open: {
-    minHeight: 44,
+    minHeight: 40,
     paddingHorizontal: space.lg,
     borderRadius: radius.pill,
     borderWidth: 1,
@@ -797,6 +1096,24 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   glance: { position: 'absolute', left: space.gutter, right: space.gutter },
   glanceRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingTop: space.md },
+  glassPad: { paddingHorizontal: space.lg, paddingBottom: space.md, paddingTop: space.xs },
+  glanceHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, paddingTop: space.md },
+  glanceActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm, paddingTop: space.xs },
+  chips: { gap: space.sm, paddingVertical: space.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    minHeight: 36,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    backgroundColor: 'rgba(20, 18, 52, 0.35)',
+  },
+  chipText: { maxWidth: 150 },
+  bead: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
+  beadGlow: { position: 'absolute', width: 12, height: 12, borderRadius: 6, opacity: 0.3 },
+  beadCore: { width: 6, height: 6, borderRadius: 3 },
   glanceBook: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   lamp: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   handle: {

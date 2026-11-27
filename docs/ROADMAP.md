@@ -28,6 +28,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 22 | The Moon Log in the tab bar, and a full sample sky for development | Done |
 | 23 | The sky as a star chart: finished books are stars, paths are named constellations | Done |
 | 24 | Depth in the sky: planes, UI-thread tilt, touch parallax, lit stars, constellations with volume | Done |
+| 25 | A sky in 3D: constellations brought close and turned by hand, orbits, planets, turning the sky, glass cards and a floating tab bar | Done |
 
 ## Later
 

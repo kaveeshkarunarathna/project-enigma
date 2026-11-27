@@ -44,13 +44,12 @@ const BAND_TINT = '#D9DDF5';
 /** Pixels per point for the sharp baked stars: crisp on a dense screen, and small in memory. */
 const SHARP_DENSITY = Math.min(PixelRatio.get(), 2);
 
-/** The Milky Way's centre line, as fractions of the plane: it runs low-left to high-right. */
-const BAND = { cx: 0.5, cy: 0.42, angle: -0.6 };
-
 /**
- * The Milky Way and the haze near the horizon, as a small shader: layered
- * noise along a band, darker dust lanes through it, a faint plum nebula low
- * in the sky, and very light grain. Drawn once into an image at half size.
+ * Deep space, as a small shader, in the night's own indigo and lavender: a nebula of folded gas (noise
+ * warped through itself, so it billows and streams like real clouds of dust),
+ * bright wisps where the gas thins into filaments, darker dust lanes through
+ * it, and very light grain. Brighter banks drift across the sky with empty
+ * dark between them. Drawn once into an image at half size, then still.
  */
 const MILKY_SKSL = Skia.RuntimeEffect.Make(`
 uniform float2 size;
@@ -66,73 +65,151 @@ float noise(float2 p) {
 float fbm(float2 p) {
   float v = 0.0;
   float a = 0.5;
-  for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
+  for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.03 + float2(1.7, 9.2); a *= 0.5; }
   return v;
 }
 
 half4 main(float2 xy) {
   float2 uv = xy / size;
   float aspect = size.x / size.y;
-  float2 c = (uv - float2(${BAND.cx}, ${BAND.cy})) * float2(aspect, 1.0);
-  float s = sin(${BAND.angle});
-  float k = cos(${BAND.angle});
-  float2 r = float2(c.x * k - c.y * s, c.x * s + c.y * k);
-  float d = abs(r.y + 0.025 * sin(r.x * 5.0));
-  float band = exp(-d * d / 0.0035);
-  float n = fbm(uv * float2(7.0 * aspect, 7.0));
-  float lanes = smoothstep(0.5, 0.78, fbm(uv * float2(16.0 * aspect, 16.0) + 3.0));
-  float glow = band * (0.45 + 0.55 * n) * (1.0 - 0.6 * lanes * band) * 0.3 * intensity;
-  float3 bandColor = mix(float3(0.33, 0.28, 0.52), float3(0.66, 0.62, 0.86), n);
-  float neb = smoothstep(0.62, 1.0, uv.y) * fbm(uv * 3.0 + 7.0) * 0.09;
-  float3 nebColor = float3(0.46, 0.29, 0.52);
-  float grain = (hash(xy) - 0.5) * 0.05;
+  float2 p = uv * float2(aspect, 1.0) * 2.6;
+  // Noise warped through noise: the gas folds and streams.
+  float2 q = float2(fbm(p), fbm(p + float2(5.2, 1.3)));
+  float2 r = float2(fbm(p + 4.0 * q + float2(1.7, 9.2)), fbm(p + 4.0 * q + float2(8.3, 2.8)));
+  float f = fbm(p + 3.5 * r);
+  float gas = smoothstep(0.38, 0.92, f);
+  // Brighter banks with dark sky between them.
+  float bank = smoothstep(0.32, 0.72, fbm(uv * float2(1.4 * aspect, 1.4) + 11.0));
+  gas *= 0.25 + 0.95 * bank;
+  // Dust lanes.
+  float lanes = smoothstep(0.52, 0.8, fbm(p * 2.2 + r * 2.0 + 20.0));
+  gas *= 1.0 - 0.7 * lanes;
+  // Bright wisps where the gas thins into filaments.
+  float ridge = 1.0 - abs(2.0 * fbm(p * 1.6 + q * 3.0 + 4.0) - 1.0);
+  float fil = pow(ridge, 7.0) * bank * 0.8;
+  // Low and deep the gas is plum; where it thickens it turns lavender.
+  float3 deep = mix(float3(0.24, 0.17, 0.40), float3(0.36, 0.23, 0.44), smoothstep(0.4, 1.0, uv.y));
+  float3 lit = float3(0.66, 0.62, 0.86);
+  float3 rgb = mix(deep, lit, gas) * gas * 0.95 + float3(0.85, 0.83, 0.97) * fil * 0.5;
+  float a = clamp(gas * 0.9 + fil * 0.55, 0.0, 1.0);
+  float grain = (hash(xy) - 0.5) * 0.04;
   float ga = abs(grain) * 0.5;
-  float a = glow + neb + ga;
-  float3 rgb = bandColor * glow + nebColor * neb + float3(grain > 0.0 ? ga : 0.0);
-  return half4(half3(rgb), half(a));
+  rgb = rgb * intensity + float3(grain > 0.0 ? ga : 0.0);
+  return half4(half3(rgb), half(a * intensity + ga));
 }`)!;
 
 type Dot = { x: number; y: number; r: number; o: number };
 
 function farStars(w: number, h: number): { baked: Dot[]; twinkling: Dot[] } {
   const rand = mulberry32(11);
-  const baked = Array.from({ length: Math.round((w * h) / 1700) }, () => ({
+  // Deep space is thick with stars: tiny, faint, everywhere.
+  const baked = Array.from({ length: Math.round((w * h) / 380) }, () => ({
     x: rand() * w,
-    y: rand() * h * 0.85,
-    r: 0.3 + rand() ** 3 * 0.6,
-    o: 0.12 + rand() * 0.38,
+    y: rand() * h,
+    r: 0.25 + rand() ** 4 * 0.7,
+    o: 0.16 + rand() ** 2 * 0.6,
   }));
   // A few slightly brighter ones twinkle; the rest are baked and still.
   const twinkling = Array.from({ length: 40 }, () => ({
     x: rand() * w,
-    y: rand() * h * 0.75,
+    y: rand() * h,
     r: 0.6 + rand() * 0.5,
     o: 0.3 + rand() * 0.3,
   }));
   return { baked, twinkling };
 }
 
+/** A second, nearer field of stars, a little brighter, and faint blue dust grains. */
 function milkyStars(w: number, h: number): Dot[] {
   const rand = mulberry32(5);
-  const gauss = () => (rand() + rand() + rand() - 1.5) * 1.4;
-  const along = { x: Math.cos(BAND.angle), y: Math.sin(BAND.angle) };
-  const band = Array.from({ length: 260 }, () => {
-    const t = (rand() - 0.5) * 1.6 * w;
-    const off = gauss() * h * 0.028;
+  const field = Array.from({ length: Math.round((w * h) / 1500) }, () => ({
+    x: rand() * w,
+    y: rand() * h,
+    r: 0.35 + rand() ** 4 * 0.9,
+    o: 0.18 + rand() ** 2 * 0.6,
+  }));
+  const dust = Array.from({ length: Math.round((w * h) / 2600) }, () => ({
+    x: rand() * w,
+    y: rand() * h,
+    r: 0.35 + rand() ** 3 * 0.7,
+    o: 0.1 + rand() * 0.3,
+  }));
+  return [...field, ...dust.map((d) => ({ ...d, o: -d.o }))];
+}
+
+type Sparkle = { x: number; y: number; r: number; spike: number; o: number };
+
+/** A few bright stars that catch the eye, each with a four-pointed sparkle. */
+function sparkleStars(w: number, h: number): Sparkle[] {
+  const rand = mulberry32(23);
+  return Array.from({ length: Math.round((w * h) / 26000) }, () => {
+    const big = rand() ** 2;
     return {
-      x: w * BAND.cx + along.x * t - along.y * off,
-      y: h * BAND.cy + along.y * t + along.x * off,
-      r: 0.3 + rand() ** 4 * 0.7,
-      o: 0.08 + rand() * 0.3,
+      x: rand() * w,
+      y: rand() * h,
+      r: 0.9 + big * 1.3,
+      spike: 6 + big * 22,
+      o: 0.55 + rand() * 0.4,
     };
   });
-  const dust = Array.from({ length: Math.round((w * h) / 3200) }, () => ({
-    x: rand() * w,
-    y: rand() * h * 0.8,
-    r: 0.35 + rand() ** 3 * 0.7,
-    o: 0.12 + rand() * 0.35,
-  }));
-  return [...band, ...dust.map((d) => ({ ...d, o: -d.o }))];
+}
+
+/**
+ * Bright stars baked once: a soft glow, a hot core, and thin spikes up,
+ * down and to the sides that fade to nothing, the way a lens sees a bright
+ * star.
+ */
+function bakeSparkles(stars: Sparkle[], w: number, h: number, density: number): SkImage | null {
+  const pw = Math.round(w * density);
+  const ph = Math.round(h * density);
+  const picture = createPicture(
+    (canvas) => {
+      canvas.scale(density, density);
+      const glow = Skia.Paint();
+      glow.setAntiAlias(true);
+      glow.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, 3, true));
+      const core = Skia.Paint();
+      core.setAntiAlias(true);
+      const spike = Skia.Paint();
+      spike.setAntiAlias(true);
+      const white = Skia.Color('#F6F2FF');
+      const clear = Skia.Color('rgba(246, 242, 255, 0)');
+      for (const s of stars) {
+        glow.setColor(Skia.Color(BAND_TINT));
+        glow.setAlphaf(0.45 * s.o);
+        canvas.drawCircle(s.x, s.y, s.r * 3, glow);
+        for (const [dx, dy] of [
+          [1, 0],
+          [0, 1],
+        ]) {
+          // Each spike is a thin bar, brightest at the star and fading both ways.
+          const len = s.spike * (dx ? 1 : 0.85);
+          spike.setShader(
+            Skia.Shader.MakeLinearGradient(
+              vec(s.x - dx * len, s.y - dy * len),
+              vec(s.x + dx * len, s.y + dy * len),
+              [clear, white, clear],
+              [0, 0.5, 1],
+              0,
+            ),
+          );
+          spike.setAlphaf(0.75 * s.o);
+          const t = 0.35 + s.r * 0.12;
+          canvas.drawRect(
+            dx
+              ? Skia.XYWHRect(s.x - len, s.y - t, len * 2, t * 2)
+              : Skia.XYWHRect(s.x - t, s.y - len, t * 2, len * 2),
+            spike,
+          );
+        }
+        core.setColor(white);
+        core.setAlphaf(s.o);
+        canvas.drawCircle(s.x, s.y, s.r, core);
+      }
+    },
+    { width: pw, height: ph },
+  );
+  return drawAsImageFromPicture(picture, { width: pw, height: ph });
 }
 
 /**
@@ -182,11 +259,14 @@ export function Atmosphere({
   tilt,
   explore,
   focus,
+  showMoon = false,
 }: {
   mood: SkyMood;
   tilt: Tilt;
   explore: Explore;
   focus: SharedValue<number>;
+  /** The storybook moon. Deep space leaves it out. */
+  showMoon?: boolean;
 }) {
   const { width, height } = useWindowDimensions();
   const { reduceMotion } = useTheme();
@@ -205,6 +285,7 @@ export function Atmosphere({
     [stars, w, h],
   );
   const milkyDots = useMemo(() => milkyStars(w, h), [w, h]);
+  const sparkles = useMemo(() => bakeSparkles(sparkleStars(w, h), w, h, SHARP_DENSITY), [w, h]);
   const milkyStarsImage = useMemo(
     () => ({
       sharp: bake(milkyDots, w, h, BAND_TINT, 0.3, SHARP_DENSITY),
@@ -289,11 +370,14 @@ export function Atmosphere({
               <Image image={milkyStarsImage.soft} x={-padX} y={-padY} width={w} height={h} />
             ) : null}
           </Group>
+          {sparkles ? <Image image={sparkles} x={-padX} y={-padY} width={w} height={h} /> : null}
         </Group>
       </Canvas>
-      <Animated.View style={[styles.moon, { left: width * 0.8 - 18, top: height * 0.12 }, moon]}>
-        <Crescent size={36} />
-      </Animated.View>
+      {showMoon ? (
+        <Animated.View style={[styles.moon, { left: width * 0.8 - 18, top: height * 0.12 }, moon]}>
+          <Crescent size={36} />
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
