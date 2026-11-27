@@ -22,6 +22,7 @@ export {
   ListBulletsIcon,
   MagnifyingGlassIcon,
   MinusIcon,
+  MoonIcon,
   PathIcon,
   PauseIcon,
   PencilSimpleIcon,

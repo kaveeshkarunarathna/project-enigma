@@ -25,6 +25,10 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 19 | The app is named Stellibria: app name, IDs, share card wordmark, store listing | Done |
 | 20 | Search your journal by meaning, with a small on-device model (offline, your own words only) | Done |
 | 21 | Next stars: book suggestions from what you read and write, with the reason, into your own paths | Done |
+| 22 | The Moon Log in the tab bar, and a full sample sky for development | Done |
+| 23 | The sky as a star chart: finished books are stars, paths are named constellations | Done |
+| 24 | Depth in the sky: planes, UI-thread tilt, touch parallax, lit stars, constellations with volume | Done |
+| 25 | A sky in 3D: constellations brought close and turned by hand, orbits, planets, turning the sky, glass cards and a floating tab bar | Done |
 
 ## Later
 
