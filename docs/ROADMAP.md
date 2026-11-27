@@ -29,6 +29,7 @@ Each phase lands as its own commit with a feature note in `docs/features/`.
 | 23 | The sky as a star chart: finished books are stars, paths are named constellations | Done |
 | 24 | Depth in the sky: planes, UI-thread tilt, touch parallax, lit stars, constellations with volume | Done |
 | 25 | A sky in 3D: constellations brought close and turned by hand, orbits, planets, turning the sky, glass cards and a floating tab bar | Done |
+| 26 | The whole sky in 3D: turn it by hand, constellations at real depth, orbits, fly to a constellation | Done |
 
 ## Later
 

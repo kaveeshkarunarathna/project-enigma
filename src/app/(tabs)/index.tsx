@@ -7,7 +7,6 @@ import {
   useCompetingGestures,
   usePanGesture,
   usePinchGesture,
-  useRotationGesture,
   useSimultaneousGestures,
   useTapGesture,
 } from 'react-native-gesture-handler';
@@ -37,7 +36,8 @@ import { BookStar } from '@/components/sky/BookStar';
 import { Constellation } from '@/components/sky/Constellation';
 import { ConstellationCloseUp } from '@/components/sky/ConstellationCloseUp';
 import { Ignite } from '@/components/sky/Ignite';
-import { StarChartView, type ChartFocus } from '@/components/sky/StarChartView';
+import { cameraNow, SkyScene } from '@/components/sky/SkyScene';
+import type { ChartFocus } from '@/components/sky/StarChartView';
 import { WeekStrip } from '@/components/sky/WeekStrip';
 import { Text } from '@/components/Text';
 import { findClassic } from '@/content/classics';
@@ -52,8 +52,14 @@ import { finishLine, readingPace, type Pace } from '@/domain/pace';
 import { pathProgress } from '@/domain/paths';
 import { bookCompletion, litBeads, ringSize, starBrightness } from '@/domain/progress';
 import {
-  depthShift,
-  hitStarChart,
+  cameraFor,
+  hitScene,
+  homeCamera,
+  layoutScene,
+  SCENE_PITCH_LIMIT,
+  type SceneCamera,
+} from '@/domain/scene';
+import {
   homeConstellation,
   type ChartConstellation,
   type ChartPlanet,
@@ -78,15 +84,16 @@ import { useStarChart } from '@/features/sky/useStarChart';
 import { SKY_CLOUDS } from '@/features/sky/look';
 import { useTilt, type Tilt } from '@/features/sky/useTilt';
 import { useTheme } from '@/theme/theme';
-import { depth, fontFamily, motion, radius, space } from '@/theme/tokens';
+import { fontFamily, motion, radius, space } from '@/theme/tokens';
 
 /**
- * The sky: the first screen and the heart of the app. A star chart of what
- * the reader has read: every finished book is a star, and the books of a
- * reading path join into its constellation, named once it is complete.
- * Drag to wander, pinch to look closer, tap a star or a constellation to
- * choose it, double tap to come home. Nights read live in the Moon Log.
- * The book in hand rests on the clouds; pull it up for tonight.
+ * The sky: the first screen and the heart of the app. What the reader has
+ * read, as a small world in 3D: every finished book is a star, the books of
+ * a reading path join into its constellation, and books being read are
+ * planets. Drag to turn the sky, pinch to come closer, tap a constellation
+ * and the camera flies to it and brings it close; double tap to come home.
+ * Nights read live in the Moon Log. The book in hand rests on glass at the
+ * foot of the sky; pull it up for tonight.
  */
 export default function SkyScreen() {
   const db = useDb();
@@ -122,8 +129,6 @@ export default function SkyScreen() {
   const clearHeight = skyHeight - 110;
   const viewport = useMemo(() => ({ width, height: clearHeight }), [width, clearHeight]);
   const chart = useStarChart(shelf, viewport);
-  const W = chart?.width ?? width;
-  const H = chart?.height ?? skyHeight;
   const stars = chart ? chart.constellations.reduce((n, c) => n + c.finished, 0) + chart.lone.length : 0;
   const empty = !!chart && stars === 0 && chart.planets.length === 0;
 
@@ -144,21 +149,59 @@ export default function SkyScreen() {
     }
   }, [completeKey]);
 
-  // The camera: drag to wander the chart, pinch to look closer.
-  const tx = useSharedValue(0);
-  const ty = useSharedValue(0);
-  const scale = useSharedValue(1);
-  const startScale = useSharedValue(1);
-  // Where the chart opened. The planes of the sky follow the drag from here,
-  // each by its own share, so the sky reads as several distances.
-  const homeX = useSharedValue(0);
-  const homeY = useSharedValue(0);
-  const dx = useDerivedValue(() => tx.get() - homeX.get());
-  const dy = useDerivedValue(() => ty.get() - homeY.get());
-  // How far the reader has turned the sky with two fingers.
+  // The sky as a world in 3D, and the camera the reader turns with a finger.
+  const scene = useMemo(() => (chart ? layoutScene(chart) : null), [chart]);
+  const sceneCentre = useMemo(() => ({ x: width / 2, y: clearHeight * 0.48 }), [width, clearHeight]);
+  const camYaw = useSharedValue(0);
+  const camPitch = useSharedValue(0);
+  const camZoom = useSharedValue(1);
+  const startCamZoom = useSharedValue(1);
+  const camTx = useSharedValue(0);
+  const camTy = useSharedValue(0);
+  const camTz = useSharedValue(0);
+  const sceneCam = useMemo(
+    () => ({ yaw: camYaw, pitch: camPitch, zoom: camZoom, tx: camTx, ty: camTy, tz: camTz }),
+    [camYaw, camPitch, camZoom, camTx, camTy, camTz],
+  );
+  // The deep-space backdrop turns a little with the sky, far behind it.
+  const dx = useDerivedValue(() => -camYaw.get() * 260 - camTx.get() * 0.2);
+  const dy = useDerivedValue(() => camPitch.get() * 220 - camTy.get() * 0.2);
   const rot = useSharedValue(0);
-  const startRot = useSharedValue(0);
-  const explore = useMemo(() => ({ dx, dy, scale, rot }), [dx, dy, scale, rot]);
+  const explore = useMemo(() => ({ dx, dy, scale: camZoom, rot }), [dx, dy, camZoom, rot]);
+
+  /** Moves the camera to look at `to`, gliding unless Reduce Motion is on. */
+  const flyTo = useCallback(
+    (to: SceneCamera, duration = motion.enter * 1.8) => {
+      const set = (v: typeof camYaw, n: number) =>
+        v.set(reduceMotion ? n : withTiming(n, { duration, easing: Easing.inOut(Easing.cubic) }));
+      set(camYaw, to.yaw);
+      set(camPitch, to.pitch);
+      set(camZoom, to.zoom);
+      set(camTx, to.target.x);
+      set(camTy, to.target.y);
+      set(camTz, to.target.z);
+    },
+    [reduceMotion, camYaw, camPitch, camZoom, camTx, camTy, camTz],
+  );
+  const goHome = useCallback(() => {
+    if (!scene || !chart) return;
+    flyTo(homeCamera(scene, homeConstellation(chart)));
+  }, [scene, chart, flyTo]);
+  // Open on the constellation finished last. The sky swings in once, so it reads as a place.
+  const placed = useRef(false);
+  useEffect(() => {
+    if (!scene || !chart || placed.current) return;
+    placed.current = true;
+    const home = homeCamera(scene, homeConstellation(chart));
+    camTx.set(home.target.x);
+    camTy.set(home.target.y);
+    camTz.set(home.target.z);
+    if (reduceMotion) return;
+    camYaw.set(-0.55);
+    camPitch.set(0.18);
+    camZoom.set(0.82);
+    flyTo(home, 2200);
+  }, [scene, chart, reduceMotion, flyTo, camYaw, camPitch, camZoom, camTx, camTy, camTz]);
 
   // A constellation brought close: its own camera, turned by the reader's finger.
   const closeId = focus?.pathId ?? null;
@@ -169,6 +212,7 @@ export default function SkyScreen() {
   const zoom = useSharedValue(1);
   const startZoom = useSharedValue(1);
   const closeOpen = useSharedValue(0);
+  const sceneShown = useDerivedValue(() => 1 - closeOpen.get());
   const lit = useSharedValue(0);
   // One slow sway either way while it rests, so it reads as a thing hanging in space.
   const sway = useSharedValue(0);
@@ -187,14 +231,16 @@ export default function SkyScreen() {
     () => ({ yaw: yawSeen, pitch, zoom, open: closeOpen, lit }),
     [yawSeen, pitch, zoom, closeOpen, lit],
   );
-  const closeCentre = useMemo(() => ({ x: width / 2, y: clearHeight / 2 }), [width, clearHeight]);
+  const closeCentre = sceneCentre;
   const closeK = closeC ? closeUpScale(closeC.box, { width, height: clearHeight }) : 1;
   const closeStars = closeC?.stars.length ?? 0;
   // Brought close only when the constellation changes, not when one of its stars is chosen.
   useEffect(() => {
     if (!closeId) {
       closeMode.set(0);
-      closeOpen.set(reduceMotion ? 0 : withTiming(0, { duration: motion.fade }));
+      closeOpen.set(reduceMotion ? 0 : withTiming(0, { duration: motion.enter }));
+      // The sky eases back to its usual distance.
+      camZoom.set(reduceMotion ? 1 : withTiming(1, { duration: motion.enter * 1.6 }));
       return;
     }
     closeMode.set(1);
@@ -206,17 +252,20 @@ export default function SkyScreen() {
       lit.set(closeStars);
       return;
     }
-    // It starts as it looks on the chart and comes forward, tipping back to show its depth.
+    // The camera has flown to it; it comes the rest of the way, tipping back to show its depth.
     const ease = { duration: motion.enter * 1.8, easing: Easing.inOut(Easing.cubic) };
-    zoom.set(scale.get());
+    zoom.set(closeK * 0.7);
     pitch.set(0);
     lit.set(0);
-    closeOpen.set(withTiming(1, { duration: motion.enter }));
-    zoom.set(withTiming(closeK, ease));
-    pitch.set(withTiming(REST_PITCH, ease));
+    closeOpen.set(withDelay(motion.enter, withTiming(1, { duration: motion.enter })));
+    zoom.set(withDelay(motion.enter, withTiming(closeK, ease)));
+    pitch.set(withDelay(motion.enter, withTiming(REST_PITCH, ease)));
     // Then its stars light one after another, the way the path was read.
     lit.set(
-      withDelay(motion.enter, withTiming(closeStars, { duration: 340 * closeStars, easing: Easing.linear })),
+      withDelay(
+        motion.enter * 2,
+        withTiming(closeStars, { duration: 340 * closeStars, easing: Easing.linear }),
+      ),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closeId, reduceMotion]);
@@ -226,59 +275,6 @@ export default function SkyScreen() {
     const target = focus ? 1 : 0;
     focusT.set(reduceMotion ? target : withTiming(target, { duration: motion.enter }));
   }, [focus, reduceMotion, focusT]);
-
-  /** Where the chart layer must sit so chart point (cx, cy) is in the middle of the sky. */
-  const centreOn = useCallback(
-    (cx: number, cy: number, s: number) => ({
-      x: clampPan(width / 2 - W / 2 - (cx - W / 2) * s, width, W, s),
-      y: clampPan(clearHeight / 2 - H / 2 - (cy - H / 2) * s, clearHeight, H, s),
-    }),
-    [width, clearHeight, W, H],
-  );
-  const moveTo = useCallback(
-    (cx: number, cy: number, s: number) => {
-      const to = centreOn(cx, cy, s);
-      if (reduceMotion) {
-        tx.set(to.x);
-        ty.set(to.y);
-        scale.set(s);
-        return;
-      }
-      const ease = { duration: motion.enter * 1.6, easing: Easing.inOut(Easing.cubic) };
-      tx.set(withTiming(to.x, ease));
-      ty.set(withTiming(to.y, ease));
-      scale.set(withTiming(s, ease));
-    },
-    [centreOn, reduceMotion, tx, ty, scale],
-  );
-  const goHome = useCallback(
-    (animate: boolean) => {
-      if (!chart) return;
-      const home = homeConstellation(chart);
-      const cx = home ? home.box.x + home.box.w / 2 : W / 2;
-      const cy = home ? home.box.y + home.box.h / 2 : H / 2;
-      if (animate) {
-        moveTo(cx, cy, 1);
-        rot.set(reduceMotion ? 0 : withTiming(0, { duration: motion.enter * 1.6 }));
-      } else {
-        const to = centreOn(cx, cy, 1);
-        tx.set(to.x);
-        ty.set(to.y);
-        homeX.set(to.x);
-        homeY.set(to.y);
-        scale.set(1);
-      }
-    },
-    [chart, W, H, moveTo, centreOn, tx, ty, scale, homeX, homeY, rot, reduceMotion],
-  );
-  // Open on the constellation finished last, once the chart is known.
-  const placed = useRef(false);
-  useEffect(() => {
-    if (chart && !placed.current) {
-      goHome(false);
-      placed.current = true;
-    }
-  }, [chart, goHome]);
 
   const pan = usePanGesture({
     minDistance: 6,
@@ -290,9 +286,11 @@ export default function SkyScreen() {
         pitch.set(Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch.get() + e.changeY * 0.006)));
         return;
       }
-      const s = scale.get();
-      tx.set(clampPan(tx.get() + e.changeX, width, W, s));
-      ty.set(clampPan(ty.get() + e.changeY, clearHeight, H, s));
+      // On the sky, a drag turns the whole sky about what the camera looks at.
+      camYaw.set(camYaw.get() + e.changeX * 0.0055);
+      camPitch.set(
+        Math.max(-SCENE_PITCH_LIMIT, Math.min(SCENE_PITCH_LIMIT, camPitch.get() - e.changeY * 0.004)),
+      );
     },
     onDeactivate: (e) => {
       'worklet';
@@ -303,19 +301,15 @@ export default function SkyScreen() {
         pitch.set(withTiming(REST_PITCH, { duration: 900, easing: Easing.inOut(Easing.cubic) }));
         return;
       }
-      // A gentle glide after a flick, slowing to rest inside the chart.
-      const s = scale.get();
-      const bx = [clampPan(-1e6, width, W, s), clampPan(1e6, width, W, s)] as [number, number];
-      const by = [clampPan(-1e6, clearHeight, H, s), clampPan(1e6, clearHeight, H, s)] as [number, number];
-      tx.set(withDecay({ velocity: e.velocityX * 0.6, deceleration: 0.994, clamp: bx }));
-      ty.set(withDecay({ velocity: e.velocityY * 0.6, deceleration: 0.994, clamp: by }));
+      // A flick keeps the sky turning a little, slowing to rest.
+      camYaw.set(withDecay({ velocity: e.velocityX * 0.0055, deceleration: 0.994 }));
     },
   });
   const pinch = usePinchGesture({
     onBegin: () => {
       'worklet';
-      startScale.set(scale.get());
       startZoom.set(zoom.get());
+      startCamZoom.set(camZoom.get());
     },
     onUpdate: (e) => {
       'worklet';
@@ -323,23 +317,7 @@ export default function SkyScreen() {
         zoom.set(Math.max(0.6, Math.min(3, startZoom.get() * e.scale)));
         return;
       }
-      const s = Math.max(0.6, Math.min(2.4, startScale.get() * e.scale));
-      scale.set(s);
-      tx.set(clampPan(tx.get(), width, W, s));
-      ty.set(clampPan(ty.get(), clearHeight, H, s));
-    },
-  });
-
-  // Two fingers turn the whole sky, like the dome of a planetarium.
-  const rotate = useRotationGesture({
-    onBegin: () => {
-      'worklet';
-      startRot.set(rot.get());
-    },
-    onUpdate: (e) => {
-      'worklet';
-      if (closeMode.get() === 1) return;
-      rot.set(startRot.get() + e.rotation);
+      camZoom.set(Math.max(0.6, Math.min(2.4, startCamZoom.get() * e.scale)));
     },
   });
 
@@ -351,7 +329,7 @@ export default function SkyScreen() {
     runOnJS: true,
     maxDistance: 8,
     onActivate: (e) => {
-      if (!chart) return;
+      if (!chart || !scene) return;
       if (closeC) {
         // Up close: a star, by where it is seen now; open sky lets the constellation go back.
         const k = zoom.get();
@@ -370,36 +348,27 @@ export default function SkyScreen() {
         else choose(null);
         return;
       }
-      const s = scale.get();
-      const ox = tx.get() - tilt.x.get() * depth.stars.tilt;
-      const oy = ty.get() - tilt.y.get() * depth.stars.tilt;
-      // Undo the layer's move, turn and zoom to find the point on the chart.
-      const r = -rot.get();
-      const vx = e.x - ox - W / 2;
-      const vy = e.y - oy - H / 2;
-      const px = W / 2 + (vx * Math.cos(r) - vy * Math.sin(r)) / s;
-      const py = H / 2 + (vx * Math.sin(r) + vy * Math.cos(r)) / s;
-      // Constellations sit at their own depths, shifted by tilt and drag.
-      const shift = (z: number) =>
-        reduceMotion ? { x: 0, y: 0 } : depthShift(z, dx.get(), dy.get(), tilt.x.get(), tilt.y.get());
-      const hit = hitStarChart(chart, px, py, 26 / s, shift);
+      // On the sky: whatever is seen under the finger, from where the camera is now.
+      const cam = cameraNow(sceneCam, tilt);
+      const hit = hitScene(scene, cam, e.x - sceneCentre.x, e.y - sceneCentre.y);
       if (!hit) {
         choose(null);
         return;
       }
       if (hit.kind === 'planet') {
         choose({ pathId: null, bookId: hit.planet.bookId, planet: true });
-        moveTo(hit.planet.x, hit.planet.y, Math.max(s, 1.15));
         return;
       }
-      if (hit.kind === 'path') {
-        const c = chart.constellations.find((k) => k.pathId === hit.pathId);
-        choose({ pathId: hit.pathId, bookId: null });
-        if (c) moveTo(c.box.x + c.box.w / 2, c.box.y + c.box.h / 2, Math.max(s, 1.15));
+      const pathId = hit.kind === 'path' ? hit.pathId : hit.pathId;
+      if (pathId) {
+        // A constellation: the camera flies to it, then it comes close and lights star by star.
+        const k = scene.constellations.find((c) => c.c.pathId === pathId);
+        if (k) flyTo(cameraFor(k), motion.enter * 1.4);
+        const bookId = hit.kind === 'book' ? (hit.star.bookId ?? `entry:${hit.star.title}`) : null;
+        choose({ pathId, bookId });
         return;
       }
-      choose({ pathId: hit.pathId, bookId: hit.star.bookId ?? `entry:${hit.star.title}` });
-      moveTo(hit.star.x, hit.star.y, Math.max(s, 1.15));
+      if (hit.kind === 'book') choose({ pathId: null, bookId: hit.star.bookId ?? `entry:${hit.star.title}` });
     },
   });
   const reset = useTapGesture({
@@ -407,18 +376,10 @@ export default function SkyScreen() {
     runOnJS: true,
     onActivate: () => {
       setFocus(null);
-      goHome(true);
+      goHome();
     },
   });
-  const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch, rotate), reset, tap);
-  const chartLayer = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: tx.get() - tilt.x.get() * depth.stars.tilt },
-      { translateY: ty.get() - tilt.y.get() * depth.stars.tilt },
-      { scale: scale.get() },
-      { rotate: `${rot.get()}rad` },
-    ],
-  }));
+  const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch), reset, tap);
 
   const chosenPlanet = focus?.planet ? chart?.planets.find((p) => p.bookId === focus.bookId) : null;
   const chosenStar =
@@ -437,19 +398,20 @@ export default function SkyScreen() {
           style={[styles.skyArea, { top: skyTop, height: skyHeight }]}
           accessible
           accessibilityRole="image"
-          accessibilityLabel={chartSummary(chart)}>
-          <Animated.View style={[styles.chart, { width: W, height: H }, chartLayer]}>
-            {chart && !empty ? (
-              <StarChartView
-                chart={chart}
-                focus={focus}
-                chosen={focusT}
-                tilt={tilt}
-                explore={explore}
-                close={closeOpen}
-              />
-            ) : null}
-          </Animated.View>
+          accessibilityLabel={chartSummary(chart)}
+          accessibilityHint="Drag to turn the sky, pinch to come closer, tap a constellation to bring it close">
+          {scene && !empty ? (
+            <SkyScene
+              scene={scene}
+              camera={sceneCam}
+              tilt={tilt}
+              width={width}
+              height={skyHeight}
+              centre={sceneCentre}
+              visible={sceneShown}
+              picked={focus?.bookId ?? null}
+            />
+          ) : null}
           {closeC ? (
             <ConstellationCloseUp
               key={closeC.pathId}
@@ -562,21 +524,6 @@ export default function SkyScreen() {
       </TonightSheet>
     </View>
   );
-}
-
-/**
- * Keeps the chart in view: its edges may come a little way inside the sky,
- * never further, so there is no empty sky to drag into. A chart smaller than
- * the view sits in the middle.
- */
-function clampPan(t: number, view: number, size: number, s: number): number {
-  'worklet';
-  const half = (size * s) / 2;
-  const margin = 28;
-  const hi = margin - size / 2 + half;
-  const lo = view - margin - size / 2 - half;
-  if (lo > hi) return (view - size) / 2;
-  return Math.min(hi, Math.max(lo, t));
 }
 
 function plural(n: number, word: string): string {
