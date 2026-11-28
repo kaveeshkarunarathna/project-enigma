@@ -13,6 +13,7 @@ import {
   Shader,
   Skia,
   vec,
+  type SkCanvas,
   type SkImage,
 } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
@@ -38,9 +39,9 @@ import { useTheme } from '@/theme/theme';
 import { depth, motion, type DepthPlane } from '@/theme/tokens';
 
 /** Far stars are cooler than the reader's warm ones, as distant things look bluer. */
-const FAR_TINT = '#C4CEF5';
+export const FAR_TINT = '#C4CEF5';
 const DUST_TINT = '#B6BEE2';
-const BAND_TINT = '#D9DDF5';
+export const BAND_TINT = '#D9DDF5';
 /** Pixels per point for the sharp baked stars: crisp on a dense screen, and small in memory. */
 const SHARP_DENSITY = Math.min(PixelRatio.get(), 2);
 
@@ -51,7 +52,7 @@ const SHARP_DENSITY = Math.min(PixelRatio.get(), 2);
  * it, and very light grain. Brighter banks drift across the sky with empty
  * dark between them. Drawn once into an image at half size, then still.
  */
-const MILKY_SKSL = Skia.RuntimeEffect.Make(`
+export const MILKY_SKSL = Skia.RuntimeEffect.Make(`
 uniform float2 size;
 uniform float intensity;
 
@@ -98,9 +99,9 @@ half4 main(float2 xy) {
   return half4(half3(rgb), half(a * intensity + ga));
 }`)!;
 
-type Dot = { x: number; y: number; r: number; o: number };
+export type Dot = { x: number; y: number; r: number; o: number };
 
-function farStars(w: number, h: number): { baked: Dot[]; twinkling: Dot[] } {
+export function farStars(w: number, h: number): { baked: Dot[]; twinkling: Dot[] } {
   const rand = mulberry32(11);
   // Deep space is thick with stars: tiny, faint, everywhere.
   const baked = Array.from({ length: Math.round((w * h) / 380) }, () => ({
@@ -120,7 +121,7 @@ function farStars(w: number, h: number): { baked: Dot[]; twinkling: Dot[] } {
 }
 
 /** A second, nearer field of stars, a little brighter, and faint blue dust grains. */
-function milkyStars(w: number, h: number): Dot[] {
+export function milkyStars(w: number, h: number): Dot[] {
   const rand = mulberry32(5);
   const field = Array.from({ length: Math.round((w * h) / 1500) }, () => ({
     x: rand() * w,
@@ -137,10 +138,10 @@ function milkyStars(w: number, h: number): Dot[] {
   return [...field, ...dust.map((d) => ({ ...d, o: -d.o }))];
 }
 
-type Sparkle = { x: number; y: number; r: number; spike: number; o: number };
+export type Sparkle = { x: number; y: number; r: number; spike: number; o: number };
 
 /** A few bright stars that catch the eye, each with a four-pointed sparkle. */
-function sparkleStars(w: number, h: number): Sparkle[] {
+export function sparkleStars(w: number, h: number): Sparkle[] {
   const rand = mulberry32(23);
   return Array.from({ length: Math.round((w * h) / 26000) }, () => {
     const big = rand() ** 2;
@@ -165,51 +166,70 @@ function bakeSparkles(stars: Sparkle[], w: number, h: number, density: number): 
   const picture = createPicture(
     (canvas) => {
       canvas.scale(density, density);
-      const glow = Skia.Paint();
-      glow.setAntiAlias(true);
-      glow.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, 3, true));
-      const core = Skia.Paint();
-      core.setAntiAlias(true);
-      const spike = Skia.Paint();
-      spike.setAntiAlias(true);
-      const white = Skia.Color('#F6F2FF');
-      const clear = Skia.Color('rgba(246, 242, 255, 0)');
-      for (const s of stars) {
-        glow.setColor(Skia.Color(BAND_TINT));
-        glow.setAlphaf(0.45 * s.o);
-        canvas.drawCircle(s.x, s.y, s.r * 3, glow);
-        for (const [dx, dy] of [
-          [1, 0],
-          [0, 1],
-        ]) {
-          // Each spike is a thin bar, brightest at the star and fading both ways.
-          const len = s.spike * (dx ? 1 : 0.85);
-          spike.setShader(
-            Skia.Shader.MakeLinearGradient(
-              vec(s.x - dx * len, s.y - dy * len),
-              vec(s.x + dx * len, s.y + dy * len),
-              [clear, white, clear],
-              [0, 0.5, 1],
-              0,
-            ),
-          );
-          spike.setAlphaf(0.75 * s.o);
-          const t = 0.35 + s.r * 0.12;
-          canvas.drawRect(
-            dx
-              ? Skia.XYWHRect(s.x - len, s.y - t, len * 2, t * 2)
-              : Skia.XYWHRect(s.x - t, s.y - len, t * 2, len * 2),
-            spike,
-          );
-        }
-        core.setColor(white);
-        core.setAlphaf(s.o);
-        canvas.drawCircle(s.x, s.y, s.r, core);
-      }
+      drawSparkles(canvas, stars);
     },
     { width: pw, height: ph },
   );
   return drawAsImageFromPicture(picture, { width: pw, height: ph });
+}
+
+/** Draws bright stars with a glow, a hot core and fading spikes onto `canvas`. */
+export function drawSparkles(canvas: SkCanvas, stars: Sparkle[]) {
+  const glow = Skia.Paint();
+  glow.setAntiAlias(true);
+  glow.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, 3, true));
+  const core = Skia.Paint();
+  core.setAntiAlias(true);
+  const spike = Skia.Paint();
+  spike.setAntiAlias(true);
+  const white = Skia.Color('#F6F2FF');
+  const clear = Skia.Color('rgba(246, 242, 255, 0)');
+  for (const s of stars) {
+    glow.setColor(Skia.Color(BAND_TINT));
+    glow.setAlphaf(0.45 * s.o);
+    canvas.drawCircle(s.x, s.y, s.r * 3, glow);
+    for (const [dx, dy] of [
+      [1, 0],
+      [0, 1],
+    ]) {
+      // Each spike is a thin bar, brightest at the star and fading both ways.
+      const len = s.spike * (dx ? 1 : 0.85);
+      spike.setShader(
+        Skia.Shader.MakeLinearGradient(
+          vec(s.x - dx * len, s.y - dy * len),
+          vec(s.x + dx * len, s.y + dy * len),
+          [clear, white, clear],
+          [0, 0.5, 1],
+          0,
+        ),
+      );
+      spike.setAlphaf(0.75 * s.o);
+      const t = 0.35 + s.r * 0.12;
+      canvas.drawRect(
+        dx
+          ? Skia.XYWHRect(s.x - len, s.y - t, len * 2, t * 2)
+          : Skia.XYWHRect(s.x - t, s.y - len, t * 2, len * 2),
+        spike,
+      );
+    }
+    core.setColor(white);
+    core.setAlphaf(s.o);
+    canvas.drawCircle(s.x, s.y, s.r, core);
+  }
+}
+
+/** Draws soft dots onto `canvas`. A negative opacity marks a dust dot, drawn in the dust tint. */
+export function drawDots(canvas: SkCanvas, dots: Dot[], tint: string, blur: number) {
+  const paint = Skia.Paint();
+  paint.setAntiAlias(true);
+  paint.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, blur, true));
+  const main = Skia.Color(tint);
+  const dust = Skia.Color(DUST_TINT);
+  for (const d of dots) {
+    paint.setColor(d.o < 0 ? dust : main);
+    paint.setAlphaf(Math.abs(d.o));
+    canvas.drawCircle(d.x, d.y, d.r, paint);
+  }
 }
 
 /**
@@ -230,16 +250,7 @@ function bake(
   const picture = createPicture(
     (canvas) => {
       canvas.scale(density, density);
-      const paint = Skia.Paint();
-      paint.setAntiAlias(true);
-      paint.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, blur, true));
-      const main = Skia.Color(tint);
-      const dust = Skia.Color(DUST_TINT);
-      for (const d of dots) {
-        paint.setColor(d.o < 0 ? dust : main);
-        paint.setAlphaf(Math.abs(d.o));
-        canvas.drawCircle(d.x, d.y, d.r, paint);
-      }
+      drawDots(canvas, dots, tint, blur);
     },
     { width: pw, height: ph },
   );

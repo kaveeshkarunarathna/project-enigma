@@ -25,7 +25,8 @@ the small wordmark at its foot.
 
 The whimsical night look: an indigo sky fading to plum, faint dust stars, a
 Milky Way haze, the cream crescent moon with a plum cloud, a cloud bank at
-the foot, and wide-tracked capitals. Then:
+the foot, and wide-tracked capitals. (Since phase 27 the card shows the Sky's
+deep space and constellations instead; see `27-share-card-sky.md`.) Then:
 
 - "My reading sky" and the period ("November 2026" or "All my nights").
 - The reader's own stars, laid out exactly like the Sky screen (same spiral,
