@@ -20,8 +20,11 @@ export const REST_PITCH = 0.22;
  * the horizontal one, and projects it with perspective. `z` grows away from
  * the reader; `s` is how much nearer things grow.
  */
-export function project(p: Vec3, yaw: number, pitch: number, focal = FOCAL): Projected {
+export function project(p: Vec3, yaw: number, pitch: number, focalIn?: number): Projected {
   'worklet';
+  // A literal, not FOCAL: module constants are not captured into a worklet's
+  // default parameters, so this would fail on the UI thread.
+  const focal = focalIn ?? 520;
   const cy = Math.cos(yaw);
   const sy = Math.sin(yaw);
   const x1 = p.x * cy + p.z * sy;
