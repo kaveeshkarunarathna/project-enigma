@@ -1,16 +1,13 @@
 import {
-  BlurMask,
+  BlendMode,
   Canvas,
-  Circle,
-  DashPathEffect,
-  Group,
-  Line,
-  LinearGradient,
-  Path,
-  RadialGradient,
+  createPicture,
+  PaintStyle,
+  Picture,
   Skia,
-  vec,
-  type SkPath,
+  StrokeCap,
+  TileMode,
+  type SkCanvas,
 } from '@shopify/react-native-skia';
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -25,14 +22,14 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { starColor, withAlpha } from './StarChartView';
+import { starColor } from './StarChartView';
 import { Text } from '@/components/Text';
 import type { Vec3 } from '@/domain/orbit';
 import { facing, fog, see, type Scene, type SceneCamera, type Seen } from '@/domain/scene';
-import type { ChartPlanet, ChartStar } from '@/domain/starChart';
+import type { ChartStar } from '@/domain/starChart';
 import type { Tilt } from '@/features/sky/useTilt';
 import { useTheme } from '@/theme/theme';
-import { fontFamily, type Palette } from '@/theme/tokens';
+import { fontFamily } from '@/theme/tokens';
 
 /** The camera as shared values, so turning never waits for JavaScript. */
 export type SceneCameraValues = {
@@ -59,23 +56,64 @@ export function cameraNow(cam: SceneCameraValues, tilt: Tilt): SceneCamera {
   };
 }
 
-type Ctx = {
-  colors: Palette;
-  /** Each thing's position this frame, in view points. */
-  seen: SharedValue<Seen[]>;
-  cx: number;
-  cy: number;
+/** A colour as plain numbers (red, green, blue, alpha from 0 to 1), so worklets can carry it. */
+type Rgba = number[];
+
+function rgbaOf(color: string): Rgba {
+  return Array.from(Skia.Color(color));
+}
+
+/** The colour at an opacity, as Skia wants it. */
+function tint(c: Rgba, a: number): Float32Array {
+  'worklet';
+  return Float32Array.of(c[0], c[1], c[2], c[3] * Math.max(0, Math.min(1, a)));
+}
+
+const SCREEN = BlendMode.Screen;
+const STROKE = PaintStyle.Stroke;
+const ROUND = StrokeCap.Round;
+const CLAMP = TileMode.Clamp;
+const HOT: Rgba = [1, 249 / 255, 238 / 255, 1];
+const CLEAR: Rgba = [0, 0, 0, 0];
+/** Nearer dust bands are brighter and warmer; the farthest is blue and faint. */
+const DUST: { color: Rgba; alpha: number }[] = [
+  { color: [233 / 255, 226 / 255, 244 / 255, 1], alpha: 0.55 },
+  { color: [201 / 255, 207 / 255, 240 / 255, 1], alpha: 0.4 },
+  { color: [169 / 255, 179 / 255, 230 / 255, 1], alpha: 0.28 },
+];
+
+/** What a star needs to be drawn, worked out once on the JS thread. */
+type StarLook = {
+  /** Its place in the list of seen points. */
+  i: number;
+  /** 0 unread, up to 1 finished. */
+  full: number;
+  finished: boolean;
+  light: Rgba;
+  base: number;
+  picked: boolean;
+  newest: boolean;
 };
+
+type ThreadLook = { a: number; b: number; joined: boolean };
+
+/** How bright a star is: finished books fully, a book being read by how far along it is. */
+function brightness(s: ChartStar): number {
+  if (s.state === 'finished') return 1;
+  if (s.state === 'reading') return 0.35 + 0.55 * s.fill;
+  return 0;
+}
 
 /**
  * The reader's sky as a small world in 3D, seen through a camera the reader
  * turns with a finger. Constellations are solids of glowing stars joined by
  * luminous threads; near stars are bigger, warmer and brighter, far ones
  * smaller, bluer and fainter, and as the sky turns, near things swing past
- * far ones. A wide orbit rings the whole scene, its far half behind the
- * stars and its near half in front, and each finished constellation has its
- * own small orbit. Planets are the books being read outside any path.
- * Drawn in one Skia canvas from shared values.
+ * far ones.
+ *
+ * Everything is recorded into one Skia picture per frame by a single
+ * worklet, so turning the sky costs one pass on the UI thread instead of
+ * dozens of animated props per star.
  */
 export function SkyScene({
   scene,
@@ -86,6 +124,7 @@ export function SkyScene({
   centre,
   visible,
   picked,
+  bleed = { top: 0, bottom: 0 },
 }: {
   scene: Scene;
   camera: SceneCameraValues;
@@ -93,12 +132,21 @@ export function SkyScene({
   width: number;
   height: number;
   centre: { x: number; y: number };
+  /**
+   * How far the drawing reaches past the view above and below, so stars and
+   * far dust turning out of the view drift on to the screen's edge instead
+   * of being cut off at a straight line.
+   */
+  bleed?: { top: number; bottom: number };
   /** 1 shown, 0 hidden (while a constellation is brought close). */
   visible: SharedValue<number>;
-  /** The chosen book or planet, if any. */
+  /** The chosen book, if any. */
   picked: string | null;
 }) {
   const { colors, reduceMotion } = useTheme();
+  // Drawn in a canvas taller than the view; everything inside it is shifted down by the top bleed.
+  const drawHeight = height + bleed.top + bleed.bottom;
+  const at = useMemo(() => ({ x: centre.x, y: centre.y + bleed.top }), [centre, bleed.top]);
 
   // Every point that moves, in one list, so one worklet projects them all each frame.
   const index = useMemo(() => {
@@ -108,31 +156,11 @@ export function SkyScene({
       starAt.push(k.stars.map((p) => points.push(p) - 1));
     }
     const loneAt = scene.lone.map((l) => points.push(l.p) - 1);
-    const planetAt = scene.planets.map((p) => points.push(p.p) - 1);
     const labelAt = scene.constellations.map((k) => points.push(k.label) - 1);
-    const centreAt = scene.constellations.map((k) => points.push(k.centre) - 1);
-    return { points, starAt, loneAt, planetAt, labelAt, centreAt };
+    return { points, starAt, loneAt, labelAt };
   }, [scene]);
 
-  const cam = useDerivedValue(() => cameraNow(camera, tilt));
-  const seen = useDerivedValue(() => {
-    const c = cam.get();
-    return index.points.map((p) => {
-      const q = see(p, c);
-      return { x: centre.x + q.x, y: centre.y + q.y, z: q.z, s: q.s };
-    });
-  });
-  const ctx: Ctx = { colors, seen, cx: centre.x, cy: centre.y };
-
   // Only the book finished last breathes, once every 7 seconds.
-  const breath = useSharedValue(0.5);
-  useEffect(() => {
-    if (reduceMotion) return;
-    breath.set(withRepeat(withTiming(1, { duration: 3500, easing: Easing.inOut(Easing.sin) }), -1, true));
-    return () => cancelAnimation(breath);
-  }, [reduceMotion, breath]);
-
-  const fade = useDerivedValue(() => visible.get());
   const newest = useMemo(() => {
     let best: ChartStar | null = null;
     for (const s of [...scene.constellations.flatMap((k) => k.c.stars), ...scene.lone.map((l) => l.star)]) {
@@ -142,63 +170,83 @@ export function SkyScene({
     return best;
   }, [scene]);
 
+  // What to draw, in back-to-front order within each constellation.
+  const looks = useMemo(() => {
+    const look = (s: ChartStar, i: number): StarLook => {
+      const full = brightness(s);
+      return {
+        i,
+        full,
+        finished: s.state === 'finished',
+        light: rgbaOf(full > 0 ? starColor(s.warmth, 0) : colors.mist),
+        base: Math.max(s.r, 2.4) * 0.95,
+        picked: !!picked && s.bookId === picked,
+        newest: s === newest,
+      };
+    };
+    const threads: ThreadLook[] = [];
+    const stars: StarLook[] = [];
+    scene.constellations.forEach((k, ci) => {
+      k.c.stars.forEach((s, j) => {
+        if (j > 0) {
+          const a = k.c.stars[j - 1];
+          threads.push({
+            a: index.starAt[ci][j - 1],
+            b: index.starAt[ci][j],
+            joined: a.state === 'finished' && s.state === 'finished',
+          });
+        }
+        stars.push(look(s, index.starAt[ci][j]));
+      });
+    });
+    scene.lone.forEach((l, j) => stars.push(look(l.star, index.loneAt[j])));
+    return {
+      threads,
+      stars,
+      starlight: rgbaOf(colors.starlight),
+      aurora: rgbaOf(colors.aurora),
+    };
+  }, [scene, index, colors, picked, newest]);
+
+  const cam = useDerivedValue(() => cameraNow(camera, tilt));
+  const seen = useDerivedValue(() => {
+    const c = cam.get();
+    return index.points.map((p) => {
+      const q = see(p, c);
+      return { x: at.x + q.x, y: at.y + q.y, z: q.z, s: q.s };
+    });
+  });
+
+  const breath = useSharedValue(0.5);
+  useEffect(() => {
+    if (reduceMotion) return;
+    breath.set(withRepeat(withTiming(1, { duration: 3500, easing: Easing.inOut(Easing.sin) }), -1, true));
+    return () => cancelAnimation(breath);
+  }, [reduceMotion, breath]);
+
+  const dust = scene.dust;
+  const picture = useDerivedValue(() => {
+    const vis = visible.get();
+    const c = cam.get();
+    const pts = seen.get();
+    const br = breath.get();
+    return createPicture(
+      (canvas) => {
+        if (vis <= 0.01) return;
+        drawDust(canvas, dust, c, at, vis);
+        drawThreads(canvas, looks.threads, pts, looks.starlight, vis);
+        drawStars(canvas, looks.stars, pts, looks.starlight, looks.aurora, br, vis);
+      },
+      { width, height: drawHeight },
+    );
+  });
+
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { width, height }]}>
+    <View
+      pointerEvents="none"
+      style={[styles.bleed, { top: -bleed.top, width, height: drawHeight }]}>
       <Canvas style={StyleSheet.absoluteFill}>
-        <Group opacity={fade}>
-          {scene.dust.map((band, b) => (
-            <Dust key={b} band={band} b={b} cam={cam} centre={centre} />
-          ))}
-          <SceneRing radius={scene.ring} cam={cam} centre={centre} colors={colors} far />
-          {scene.constellations.map((k, ci) => (
-            <Group key={k.c.pathId}>
-              {k.c.complete ? <SmallOrbit k={k} cam={cam} centre={centre} colors={colors} far /> : null}
-              {k.stars.slice(1).map((_, i) => (
-                <Thread
-                  key={`t${i}`}
-                  a={k.c.stars[i]}
-                  b={k.c.stars[i + 1]}
-                  ia={index.starAt[ci][i]}
-                  ib={index.starAt[ci][i + 1]}
-                  ctx={ctx}
-                />
-              ))}
-              {k.c.stars.map((s, i) => (
-                <GlowStar
-                  key={`s${i}`}
-                  s={s}
-                  i={index.starAt[ci][i]}
-                  ctx={ctx}
-                  picked={!!picked && s.bookId === picked}
-                  breath={breath}
-                  newest={s === newest}
-                />
-              ))}
-              {k.c.complete ? <SmallOrbit k={k} cam={cam} centre={centre} colors={colors} /> : null}
-            </Group>
-          ))}
-          {scene.lone.map((l, i) => (
-            <GlowStar
-              key={l.star.bookId ?? i}
-              s={l.star}
-              i={index.loneAt[i]}
-              ctx={ctx}
-              picked={!!picked && l.star.bookId === picked}
-              breath={breath}
-              newest={l.star === newest}
-            />
-          ))}
-          {scene.planets.map((p, i) => (
-            <Planet
-              key={p.planet.bookId}
-              p={p.planet}
-              i={index.planetAt[i]}
-              ctx={ctx}
-              picked={picked === p.planet.bookId}
-            />
-          ))}
-          <SceneRing radius={scene.ring} cam={cam} centre={centre} colors={colors} />
-        </Group>
+        <Picture picture={picture} />
       </Canvas>
       {scene.constellations.map((k, ci) => (
         <Name
@@ -216,384 +264,135 @@ export function SkyScene({
   );
 }
 
-/** Faint far stars in one depth band, as one path of tiny dots. */
-function Dust({
-  band,
-  b,
-  cam,
-  centre,
-}: {
-  band: Vec3[];
-  b: number;
-  cam: SharedValue<SceneCamera>;
-  centre: { x: number; y: number };
-}) {
-  const path = useDerivedValue(() => {
-    const p = Skia.PathBuilder.Make();
-    const c = cam.get();
-    for (const v of band) {
+/** Faint far stars, one path of tiny dots per depth band. */
+function drawDust(
+  canvas: SkCanvas,
+  bands: Vec3[][],
+  c: SceneCamera,
+  centre: { x: number; y: number },
+  vis: number,
+) {
+  'worklet';
+  const paint = Skia.Paint();
+  paint.setAntiAlias(true);
+  for (let b = 0; b < bands.length; b++) {
+    const path = Skia.PathBuilder.Make();
+    for (const v of bands[b]) {
       const q = see(v, c);
       if (q.s <= 0) continue;
-      p.addCircle(centre.x + q.x, centre.y + q.y, Math.max(0.45, 0.9 * q.s));
+      path.addCircle(centre.x + q.x, centre.y + q.y, Math.max(0.45, 0.9 * q.s));
     }
-    return p.build();
-  });
-  // Nearer bands are brighter and warmer; the farthest is blue and faint.
-  const tones = ['#E9E2F4', '#C9CFF0', '#A9B3E6'];
-  const alpha = [0.55, 0.4, 0.28];
-  return <Path path={path} color={tones[b]} opacity={alpha[b]} />;
+    paint.setColor(tint(DUST[b].color, DUST[b].alpha * vis));
+    canvas.drawPath(path.build(), paint);
+  }
 }
 
-/** The half of a ring that lies behind (`far`) or in front of the point the camera looks at. */
-function ringHalf(pts: Seen[], far: boolean): SkPath {
+/** Luminous threads between finished stars, fading towards their farther end; faint dotted guides to stars not yet lit. */
+function drawThreads(canvas: SkCanvas, threads: ThreadLook[], pts: Seen[], light: Rgba, vis: number) {
   'worklet';
-  const p = Skia.PathBuilder.Make();
-  let down = false;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    if (a.s <= 0 || b.s <= 0) {
-      down = false;
-      continue;
-    }
-    if (a.z + b.z > 0 === far) {
-      if (!down) p.moveTo(a.x, a.y);
-      p.lineTo(b.x, b.y);
-      down = true;
-    } else down = false;
+  const glow = Skia.Paint();
+  glow.setAntiAlias(true);
+  glow.setStyle(STROKE);
+  glow.setStrokeCap(ROUND);
+  glow.setStrokeWidth(6);
+  glow.setColor(tint(light, 0.06 * vis));
+  const line = Skia.Paint();
+  line.setAntiAlias(true);
+  line.setStyle(STROKE);
+  line.setStrokeCap(ROUND);
+  const dashed = Skia.Paint();
+  dashed.setAntiAlias(true);
+  dashed.setStyle(STROKE);
+  dashed.setPathEffect(Skia.PathEffect.MakeDash([2, 5], 0));
+  for (const t of threads) {
+    const qa = pts[t.a];
+    const qb = pts[t.b];
+    if (!qa || !qb || qa.s <= 0 || qb.s <= 0) continue;
+    const k = t.joined ? 0.8 : 0.3;
+    const width = (t.joined ? 1.4 : 0.9) * Math.min(1.6, (qa.s + qb.s) / 2);
+    const paint = t.joined ? line : dashed;
+    paint.setStrokeWidth(width);
+    paint.setShader(
+      Skia.Shader.MakeLinearGradient(
+        { x: qa.x, y: qa.y },
+        { x: qb.x, y: qb.y },
+        [tint(light, k * fog(qa.z) * vis), tint(light, k * fog(qb.z) * vis)],
+        null,
+        CLAMP,
+      ),
+    );
+    if (t.joined) canvas.drawLine(qa.x, qa.y, qb.x, qb.y, glow);
+    canvas.drawLine(qa.x, qa.y, qb.x, qb.y, paint);
   }
-  return p.build();
-}
-
-/** A circle of `radius` about `o`, leaning by `lean`, as seen now. */
-function ringPoints(
-  o: Vec3,
-  radius: number,
-  lean: number,
-  c: SceneCamera,
-  cx: number,
-  cy: number,
-  count = 96,
-): Seen[] {
-  'worklet';
-  const out: Seen[] = [];
-  const cl = Math.cos(lean);
-  const sl = Math.sin(lean);
-  for (let i = 0; i <= count; i++) {
-    const a = (2 * Math.PI * i) / count;
-    const x = radius * Math.cos(a);
-    const flat = radius * Math.sin(a);
-    const q = see({ x: o.x + x, y: o.y + flat * sl, z: o.z + flat * cl }, c);
-    out.push({ x: cx + q.x, y: cy + q.y, z: q.z, s: q.s });
-  }
-  return out;
 }
 
 /**
- * The wide orbit around the whole scene, like the ecliptic on a planetarium
- * dome: a fine teal line, its far half fainter and behind the stars, its
- * near half brighter and in front of them.
- */
-function SceneRing({
-  radius,
-  cam,
-  centre,
-  colors,
-  far = false,
-}: {
-  radius: number;
-  cam: SharedValue<SceneCamera>;
-  centre: { x: number; y: number };
-  colors: Palette;
-  far?: boolean;
-}) {
-  const path = useDerivedValue(() => {
-    const c = cam.get();
-    // The ring circles the middle of the scene, not the constellation being looked at.
-    const pts = ringPoints({ x: 0, y: 40, z: 60 }, radius, 0.3, c, centre.x, centre.y, 140);
-    return ringHalf(pts, far);
-  });
-  return (
-    <Group>
-      <Path
-        path={path}
-        style="stroke"
-        strokeWidth={far ? 4 : 6}
-        color={withAlpha(colors.aurora, far ? 0.05 : 0.09)}>
-        <BlurMask blur={4} style="normal" />
-      </Path>
-      <Path
-        path={path}
-        style="stroke"
-        strokeWidth={far ? 0.7 : 1.1}
-        color={withAlpha(colors.aurora, far ? 0.28 : 0.5)}
-      />
-    </Group>
-  );
-}
-
-/** A finished constellation's own small orbit, leaning, front half in front of its stars. */
-function SmallOrbit({
-  k,
-  cam,
-  centre,
-  colors,
-  far = false,
-}: {
-  k: Scene['constellations'][number];
-  cam: SharedValue<SceneCamera>;
-  centre: { x: number; y: number };
-  colors: Palette;
-  far?: boolean;
-}) {
-  const path = useDerivedValue(() => {
-    const pts = ringPoints(k.centre, k.orbit, 0.42, cam.get(), centre.x, centre.y, 72);
-    // Halves are split about the constellation's own centre.
-    const mid = see(k.centre, cam.get()).z;
-    return ringHalf(
-      pts.map((p) => ({ ...p, z: p.z - mid })),
-      far,
-    );
-  });
-  return (
-    <Path
-      path={path}
-      style="stroke"
-      strokeWidth={far ? 0.6 : 0.9}
-      color={withAlpha(colors.candlelight, far ? 0.16 : 0.32)}
-    />
-  );
-}
-
-/** A luminous thread between two finished stars; a faint dotted guide to a star not yet lit. */
-function Thread({ a, b, ia, ib, ctx }: { a: ChartStar; b: ChartStar; ia: number; ib: number; ctx: Ctx }) {
-  const p1 = useDerivedValue(() => {
-    const q = ctx.seen.get()[ia];
-    return vec(q?.x ?? 0, q?.y ?? 0);
-  });
-  const p2 = useDerivedValue(() => {
-    const q = ctx.seen.get()[ib];
-    return vec(q?.x ?? 0, q?.y ?? 0);
-  });
-  const joined = a.state === 'finished' && b.state === 'finished';
-  // The thread's light fades towards its farther end.
-  const rgb = hexRgb(ctx.colors.starlight);
-  const colorsAB = useDerivedValue(() => {
-    const qa = ctx.seen.get()[ia];
-    const qb = ctx.seen.get()[ib];
-    const k = joined ? 0.8 : 0.3;
-    return [rgba(rgb, k * fog(qa?.z ?? 0)), rgba(rgb, k * fog(qb?.z ?? 0))];
-  });
-  const width = useDerivedValue(() => {
-    const qa = ctx.seen.get()[ia];
-    const qb = ctx.seen.get()[ib];
-    return (joined ? 1.4 : 0.9) * Math.min(1.6, ((qa?.s ?? 1) + (qb?.s ?? 1)) / 2);
-  });
-  if (!joined) {
-    return (
-      <Line p1={p1} p2={p2} strokeWidth={width}>
-        <LinearGradient start={p1} end={p2} colors={colorsAB} />
-        <DashPathEffect intervals={[2, 5]} />
-      </Line>
-    );
-  }
-  return (
-    <Group>
-      <Line p1={p1} p2={p2} strokeWidth={7} strokeCap="round" color={withAlpha(ctx.colors.starlight, 0.1)}>
-        <BlurMask blur={5} style="normal" />
-      </Line>
-      <Line p1={p1} p2={p2} strokeWidth={width} strokeCap="round">
-        <LinearGradient start={p1} end={p2} colors={colorsAB} />
-      </Line>
-    </Group>
-  );
-}
-
-/** A colour's red, green and blue, read once on the JS thread. */
-function hexRgb(color: string): [number, number, number] {
-  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
-  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [234, 219, 193];
-}
-
-/** The colour at an opacity, built on the UI thread each frame. */
-function rgba(c: [number, number, number], a: number): string {
-  'worklet';
-  return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a.toFixed(3)})`;
-}
-
-/** How bright a star is: finished books fully, a book being read by how far along it is. */
-function brightness(s: ChartStar): number {
-  if (s.state === 'finished') return 1;
-  if (s.state === 'reading') return 0.35 + 0.55 * s.fill;
-  return 0;
-}
-
-/**
- * A star as a point of light in space: a soft halo that adds up where it
+ * Stars as points of light in space: a soft halo that adds up where it
  * overlaps another (screen blend), its own colour, a tiny hot core, and four
  * fine rays on finished books. A book not yet read is an outline waiting for
  * its light. Size and brightness follow its distance.
  */
-function GlowStar({
-  s,
-  i,
-  ctx,
-  picked,
-  breath,
-  newest,
-}: {
-  s: ChartStar;
-  i: number;
-  ctx: Ctx;
-  picked: boolean;
-  breath: SharedValue<number>;
-  /** The book finished last: the one star that breathes. */
-  newest: boolean;
-}) {
-  const { colors } = ctx;
-  const full = brightness(s);
-  const light = full > 0 ? starColor(s.warmth, 0) : colors.mist;
-  const base = Math.max(s.r, 2.4) * 0.95;
-  const p = useDerivedValue(() => ctx.seen.get()[i] ?? { x: -100, y: -100, z: 0, s: 0 });
-  const x = useDerivedValue(() => p.get().x);
-  const y = useDerivedValue(() => p.get().y);
-  const near = useDerivedValue(() => Math.min(p.get().s, 2.2));
-  const f = useDerivedValue(() => fog(p.get().z));
-  const r = useDerivedValue(() => base * near.get());
-  const haloR = useDerivedValue(() => r.get() * 5.5);
-  const haloO = useDerivedValue(() => 0.8 * full * f.get() * (newest ? 0.75 + 0.5 * breath.get() : 1));
-  const coreO = useDerivedValue(() => (full > 0 ? (0.45 + 0.55 * full) * f.get() : 0.45 * f.get()));
-  const hot = useDerivedValue(() => r.get() * 0.42);
-  const centre = useDerivedValue(() => vec(x.get(), y.get()));
-  const ray = useDerivedValue(() => r.get() * 4.2);
-  const rays = useDerivedValue(() => {
-    const path = Skia.PathBuilder.Make();
-    if (s.state !== 'finished') return path.build();
-    const cx = x.get();
-    const cy = y.get();
-    const l = ray.get();
-    path
-      .moveTo(cx - l, cy)
-      .lineTo(cx + l, cy)
-      .moveTo(cx, cy - l)
-      .lineTo(cx, cy + l);
-    return path.build();
-  });
-  const raysO = useDerivedValue(() => 0.35 * f.get());
-  const markR = useDerivedValue(() => r.get() + 8);
-  return (
-    <Group>
-      {full > 0 ? (
-        <Circle cx={x} cy={y} r={haloR} opacity={haloO} blendMode="screen">
-          <RadialGradient c={centre} r={haloR} colors={[light, 'rgba(0,0,0,0)']} positions={[0, 1]} />
-        </Circle>
-      ) : null}
-      {s.state === 'finished' ? (
-        <Path path={rays} style="stroke" strokeWidth={0.7} color={light} opacity={raysO} />
-      ) : null}
-      {full > 0 ? (
-        <Circle cx={x} cy={y} r={r} color={light} opacity={coreO} />
-      ) : (
-        <Circle
-          cx={x}
-          cy={y}
-          r={r}
-          style="stroke"
-          strokeWidth={1}
-          color={withAlpha(colors.starlight, 0.5)}
-          opacity={coreO}
-        />
-      )}
-      {full > 0 ? <Circle cx={x} cy={y} r={hot} color="#FFF9EE" opacity={coreO} /> : null}
-      {picked ? (
-        <Circle cx={x} cy={y} r={markR} style="stroke" strokeWidth={1} color={colors.aurora} opacity={0.9} />
-      ) : null}
-    </Group>
-  );
-}
-
-const PLANET_TONES: [string, string, string][] = [
-  ['#F2C9C4', '#B97C8E', '#3A2547'],
-  ['#C8EDE2', '#6FA8A6', '#1E3346'],
-  ['#F5E2BF', '#C49A6C', '#3C2A35'],
-  ['#DCD3F6', '#8B7DC2', '#262250'],
-];
-
-/**
- * A book being read, as a small world in space: lit from the upper left, a
- * thin atmosphere, and a leaning ring lit as far as the reader has read; the
- * back of the ring passes behind the planet and the front in front. Drawn
- * about its own centre, then moved and scaled to where it is seen.
- */
-function Planet({ p, i, ctx, picked }: { p: ChartPlanet; i: number; ctx: Ctx; picked: boolean }) {
-  const { colors } = ctx;
-  const tone = PLANET_TONES[Math.floor(p.hue * PLANET_TONES.length) % PLANET_TONES.length];
-  const R = p.r * 1.3;
-  const rx = R * (p.ringed ? 2.3 : 1.9);
-  const ry = rx * 0.28;
-  const arcs = useMemo(() => {
-    const oval = { x: -rx, y: -ry, width: rx * 2, height: ry * 2 };
-    const arc = (start: number, sweep: number) => {
-      const path = Skia.PathBuilder.Make();
-      if (sweep > 0) path.addArc(oval, start, sweep);
-      return path.build();
-    };
-    const sweep = 360 * p.fill;
-    return {
-      back: arc(180, 180),
-      front: arc(0, 180),
-      backLit: arc(180, Math.min(sweep, 180)),
-      frontLit: arc(0, Math.max(0, sweep - 180)),
-    };
-  }, [rx, ry, p.fill]);
-  const transform = useDerivedValue(() => {
-    const q = ctx.seen.get()[i] ?? { x: -100, y: -100, s: 0 };
-    return [{ translateX: q.x }, { translateY: q.y }, { scale: Math.min(q.s, 2) }];
-  });
-  const opacity = useDerivedValue(() => fog(ctx.seen.get()[i]?.z ?? 0));
-  const lean = [{ rotate: p.lean }];
-  const ringW = p.ringed ? 2.4 : 1;
-  const ring = (path: SkPath, lit: boolean) => (
-    <Path
-      path={path}
-      style="stroke"
-      strokeWidth={lit ? ringW + 0.4 : ringW}
-      strokeCap="round"
-      color={lit ? colors.candlelight : withAlpha(colors.starlight, p.ringed ? 0.24 : 0.18)}
-      opacity={lit ? 0.9 : 1}
-    />
-  );
-  return (
-    <Group transform={transform} opacity={opacity}>
-      <Group transform={lean}>
-        {ring(arcs.back, false)}
-        {ring(arcs.backLit, true)}
-      </Group>
-      <Circle cx={0} cy={0} r={R * 2.1} opacity={0.5} blendMode="screen">
-        <RadialGradient
-          c={vec(0, 0)}
-          r={R * 2.1}
-          colors={[withAlpha(tone[1], 0.5), withAlpha(tone[1], 0)]}
-          positions={[0.45, 1]}
-        />
-      </Circle>
-      <Circle cx={0} cy={0} r={R}>
-        <RadialGradient
-          c={vec(-R * 0.4, -R * 0.45)}
-          r={R * 1.7}
-          colors={[tone[0], tone[1], tone[2]]}
-          positions={[0, 0.45, 1]}
-        />
-      </Circle>
-      <Group transform={lean}>
-        {ring(arcs.front, false)}
-        {ring(arcs.frontLit, true)}
-      </Group>
-      {picked ? (
-        <Circle cx={0} cy={0} r={rx + 6} style="stroke" strokeWidth={1} color={colors.aurora} opacity={0.8} />
-      ) : null}
-    </Group>
-  );
+function drawStars(
+  canvas: SkCanvas,
+  stars: StarLook[],
+  pts: Seen[],
+  starlight: Rgba,
+  aurora: Rgba,
+  breath: number,
+  vis: number,
+) {
+  'worklet';
+  const halo = Skia.Paint();
+  halo.setAntiAlias(true);
+  halo.setBlendMode(SCREEN);
+  const fill = Skia.Paint();
+  fill.setAntiAlias(true);
+  const stroke = Skia.Paint();
+  stroke.setAntiAlias(true);
+  stroke.setStyle(STROKE);
+  for (const st of stars) {
+    const q = pts[st.i];
+    if (!q || q.s <= 0) continue;
+    const f = fog(q.z) * vis;
+    const r = st.base * Math.min(q.s, 2.2);
+    const coreO = st.full > 0 ? (0.45 + 0.55 * st.full) * f : 0.45 * f;
+    if (st.full > 0) {
+      const haloR = r * 5.5;
+      const haloO = 0.8 * st.full * f * (st.newest ? 0.75 + 0.5 * breath : 1);
+      halo.setShader(
+        Skia.Shader.MakeRadialGradient(
+          { x: q.x, y: q.y },
+          haloR,
+          [tint(st.light, haloO), tint(CLEAR, 0)],
+          [0, 1],
+          CLAMP,
+        ),
+      );
+      canvas.drawCircle(q.x, q.y, haloR, halo);
+    }
+    if (st.finished) {
+      const l = r * 4.2;
+      stroke.setStrokeWidth(0.7);
+      stroke.setColor(tint(st.light, 0.35 * f));
+      canvas.drawLine(q.x - l, q.y, q.x + l, q.y, stroke);
+      canvas.drawLine(q.x, q.y - l, q.x, q.y + l, stroke);
+    }
+    if (st.full > 0) {
+      fill.setColor(tint(st.light, coreO));
+      canvas.drawCircle(q.x, q.y, r, fill);
+      fill.setColor(tint(HOT, coreO));
+      canvas.drawCircle(q.x, q.y, r * 0.42, fill);
+    } else {
+      stroke.setStrokeWidth(1);
+      stroke.setColor(tint(starlight, 0.5 * coreO));
+      canvas.drawCircle(q.x, q.y, r, stroke);
+    }
+    if (st.picked) {
+      stroke.setStrokeWidth(1);
+      stroke.setColor(tint(aurora, 0.9 * vis));
+      canvas.drawCircle(q.x, q.y, r + 8, stroke);
+    }
+  }
 }
 
 /**
@@ -648,6 +447,7 @@ function Name({
 const NAME_W = 240;
 
 const styles = StyleSheet.create({
+  bleed: { position: 'absolute', left: 0 },
   name: { position: 'absolute', left: 0, top: 0, width: NAME_W, alignItems: 'center', gap: 2 },
   nameText: {
     fontFamily: fontFamily.serifItalic,

@@ -10,7 +10,6 @@ import {
   RadialGradient,
   Skia,
   vec,
-  type SkPath,
 } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -20,7 +19,6 @@ import { starColor, withAlpha } from './StarChartView';
 import { Text } from '@/components/Text';
 import {
   igniteAt,
-  orbitPoints,
   orbitRadius,
   project,
   solidOfBox,
@@ -30,9 +28,6 @@ import {
 import type { ChartConstellation, ChartStar } from '@/domain/starChart';
 import { useTheme } from '@/theme/theme';
 import { fontFamily, type Palette } from '@/theme/tokens';
-
-/** How the orbit leans, so it is a ring even seen edge on. */
-const LEAN = 0.3;
 
 export type CloseUpCamera = {
   /** The turn about the vertical axis as seen, in radians: the reader's turn plus a slow sway. */
@@ -50,10 +45,8 @@ export type CloseUpCamera = {
 /**
  * A constellation brought close: the stars of a reading path as a small
  * solid the reader can turn with a finger. Near stars are bigger, warmer and
- * in front; far ones smaller, bluer and behind. An orbit circles the shape,
- * lit along its length as far as the path has been read, with a bead where
- * the reader is now; the far half of the orbit passes behind the stars and
- * the near half in front. Stars light one after another as it opens.
+ * in front; far ones smaller, bluer and behind. Stars light one after
+ * another as it opens.
  */
 export function ConstellationCloseUp({
   c,
@@ -90,45 +83,10 @@ export function ConstellationCloseUp({
     });
   });
 
-  // The orbit, split at the shape's middle: the far half behind the stars, the near half in front.
-  const progress = c.total ? c.finished / c.total : 0;
   const radius = orbitRadius(c.box);
-  const orbit = useDerivedValue(() => {
-    const v = view.get();
-    const all = orbitPoints(radius, LEAN, v.yaw, v.pitch, 96);
-    const done = orbitPoints(radius, LEAN, v.yaw, v.pitch, 96, 0, progress);
-    const at = (q: Projected) => ({ x: cx + q.x * v.k, y: cy + q.y * v.k, z: q.z });
-    return { all: all.map(at), done: done.map(at) };
-  });
-  const back = useDerivedValue(() => halfPath(orbit.get().all, true));
-  const front = useDerivedValue(() => halfPath(orbit.get().all, false));
-  const litBack = useDerivedValue(() => halfPath(orbit.get().done, true));
-  const litFront = useDerivedValue(() => halfPath(orbit.get().done, false));
-  const bead = useDerivedValue(() => {
-    const d = orbit.get().done;
-    return d[d.length - 1] ?? { x: cx, y: cy, z: 0 };
-  });
-  const beadX = useDerivedValue(() => bead.get().x);
-  const beadY = useDerivedValue(() => bead.get().y);
-
-  // A second, fainter orbit leaning the other way: only for the sense of space.
-  const inner = useDerivedValue(() => {
-    const v = view.get();
-    const pts = orbitPoints(radius * 0.78, -LEAN * 1.6, v.yaw + 0.9, v.pitch, 72).map((q) => ({
-      x: cx + q.x * v.k,
-      y: cy + q.y * v.k,
-      z: q.z,
-    }));
-    const p = Skia.PathBuilder.Make();
-    pts.forEach((q, i) => (i ? p.lineTo(q.x, q.y) : p.moveTo(q.x, q.y)));
-    return p.build();
-  });
-
   const glowR = useDerivedValue(() => radius * 1.25 * zoom.get());
   const fade = useDerivedValue(() => open.get());
-  const ringOpacity = useDerivedValue(() => open.get() * 0.9);
 
-  const ring = colors.aurora;
   const light = colors.starlight;
   const segments = c.stars.slice(1).map((b, i) => ({ a: c.stars[i], b, i }));
 
@@ -145,21 +103,6 @@ export function ConstellationCloseUp({
               positions={[0, 0.55, 1]}
             />
           </Circle>
-          <Group opacity={ringOpacity}>
-            <Path path={inner} style="stroke" strokeWidth={0.7} color={withAlpha(light, 0.1)}>
-              <DashPathEffect intervals={[1, 6]} />
-            </Path>
-            <Path path={back} style="stroke" strokeWidth={0.8} color={withAlpha(ring, 0.16)}>
-              <DashPathEffect intervals={[2, 5]} />
-            </Path>
-            <Path
-              path={litBack}
-              style="stroke"
-              strokeWidth={1.2}
-              strokeCap="round"
-              color={withAlpha(ring, 0.42)}
-            />
-          </Group>
           {segments.map(({ a, b, i }) => (
             <Connection
               key={`l${i}`}
@@ -184,34 +127,6 @@ export function ConstellationCloseUp({
               picked={!!picked && (s.bookId ?? `entry:${s.title}`) === picked}
             />
           ))}
-          <Group opacity={ringOpacity}>
-            <Path path={front} style="stroke" strokeWidth={1} color={withAlpha(ring, 0.28)}>
-              <DashPathEffect intervals={[2, 5]} />
-            </Path>
-            <Path
-              path={litFront}
-              style="stroke"
-              strokeWidth={5}
-              strokeCap="round"
-              color={withAlpha(ring, 0.16)}>
-              <BlurMask blur={4} style="normal" />
-            </Path>
-            <Path
-              path={litFront}
-              style="stroke"
-              strokeWidth={1.6}
-              strokeCap="round"
-              color={withAlpha(ring, 0.85)}
-            />
-            {progress > 0 ? (
-              <Group>
-                <Circle cx={beadX} cy={beadY} r={9} color={withAlpha(ring, 0.25)}>
-                  <BlurMask blur={5} style="normal" />
-                </Circle>
-                <Circle cx={beadX} cy={beadY} r={3.2} color={ring} />
-              </Group>
-            ) : null}
-          </Group>
         </Group>
       </Canvas>
       {c.stars.map((s, i) => (
@@ -226,24 +141,6 @@ export function ConstellationCloseUp({
       ))}
     </View>
   );
-}
-
-/** The half of a ring that lies behind (`far`) or in front of the shape's middle. */
-function halfPath(pts: { x: number; y: number; z: number }[], far: boolean): SkPath {
-  'worklet';
-  const p = Skia.PathBuilder.Make();
-  let down = false;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    const isFar = a.z + b.z > 0;
-    if (isFar === far) {
-      if (!down) p.moveTo(a.x, a.y);
-      p.lineTo(b.x, b.y);
-      down = true;
-    } else down = false;
-  }
-  return p.build();
 }
 
 /** How bright a star is once lit: finished books fully, a book being read by how far along it is. */

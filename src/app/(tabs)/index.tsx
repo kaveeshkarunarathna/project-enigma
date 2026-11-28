@@ -62,7 +62,6 @@ import {
 import {
   homeConstellation,
   type ChartConstellation,
-  type ChartPlanet,
   type ChartStar,
   type StarChart,
 } from '@/domain/starChart';
@@ -89,8 +88,7 @@ import { fontFamily, motion, radius, space } from '@/theme/tokens';
 /**
  * The sky: the first screen and the heart of the app. What the reader has
  * read, as a small world in 3D: every finished book is a star, the books of
- * a reading path join into its constellation, and books being read are
- * planets. Drag to turn the sky, pinch to come closer, tap a constellation
+ * a reading path join into its constellation. Drag to turn the sky, pinch to come closer, tap a constellation
  * and the camera flies to it and brings it close; double tap to come home.
  * Nights read live in the Moon Log. The book in hand rests on glass at the
  * foot of the sky; pull it up for tonight.
@@ -113,7 +111,9 @@ export default function SkyScreen() {
     return skyMood(now.getHours() + now.getMinutes() / 60);
   });
   const isFocused = useIsFocused();
-  const tilt = useTilt(isFocused);
+  // The sensor element is mounted on its own; worklets only ever see the two values.
+  const { x: tiltX, y: tiltY, source: tiltSource } = useTilt(isFocused);
+  const tilt = useMemo(() => ({ x: tiltX, y: tiltY }), [tiltX, tiltY]);
   const [focus, setFocus] = useState<ChartFocus>(null);
   const [sheet, setSheet] = useState(false);
   // A small warm dot on the gear, instead of a line of text, when a backup is due.
@@ -130,7 +130,7 @@ export default function SkyScreen() {
   const viewport = useMemo(() => ({ width, height: clearHeight }), [width, clearHeight]);
   const chart = useStarChart(shelf, viewport);
   const stars = chart ? chart.constellations.reduce((n, c) => n + c.finished, 0) + chart.lone.length : 0;
-  const empty = !!chart && stars === 0 && chart.planets.length === 0;
+  const empty = !!chart && stars === 0;
 
   // A soft tap when a constellation is completed while the sky is open. Once,
   // and never for the ones already complete when it opened.
@@ -152,6 +152,11 @@ export default function SkyScreen() {
   // The sky as a world in 3D, and the camera the reader turns with a finger.
   const scene = useMemo(() => (chart ? layoutScene(chart) : null), [chart]);
   const sceneCentre = useMemo(() => ({ x: width / 2, y: clearHeight * 0.48 }), [width, clearHeight]);
+  // The scene draws over the whole screen, so nothing turning out of the sky is cut off at its edges.
+  const sceneBleed = useMemo(
+    () => ({ top: skyTop, bottom: Math.max(0, height - skyTop - skyHeight) }),
+    [skyTop, height, skyHeight],
+  );
   const camYaw = useSharedValue(0);
   const camPitch = useSharedValue(0);
   const camZoom = useSharedValue(1);
@@ -355,10 +360,6 @@ export default function SkyScreen() {
         choose(null);
         return;
       }
-      if (hit.kind === 'planet') {
-        choose({ pathId: null, bookId: hit.planet.bookId, planet: true });
-        return;
-      }
       const pathId = hit.kind === 'path' ? hit.pathId : hit.pathId;
       if (pathId) {
         // A constellation: the camera flies to it, then it comes close and lights star by star.
@@ -381,7 +382,6 @@ export default function SkyScreen() {
   });
   const gesture = useCompetingGestures(useSimultaneousGestures(pan, pinch), reset, tap);
 
-  const chosenPlanet = focus?.planet ? chart?.planets.find((p) => p.bookId === focus.bookId) : null;
   const chosenStar =
     focus?.bookId && !focus.planet && !focus.pathId
       ? chart?.lone.find((s) => s.bookId === focus.bookId)
@@ -390,7 +390,7 @@ export default function SkyScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.night }]}>
-      {tilt.source}
+      {tiltSource}
       <Atmosphere mood={mood} tilt={tilt} explore={explore} focus={focusT} showMoon={SKY_CLOUDS} />
 
       <GestureDetector gesture={gesture}>
@@ -410,6 +410,7 @@ export default function SkyScreen() {
               centre={sceneCentre}
               visible={sceneShown}
               picked={focus?.bookId ?? null}
+              bleed={sceneBleed}
             />
           ) : null}
           {closeC ? (
@@ -483,13 +484,6 @@ export default function SkyScreen() {
               c={closeC}
               picked={focus?.bookId ?? null}
               onPick={(bookId) => setFocus({ pathId: closeC.pathId, bookId })}
-              onClose={() => choose(null)}
-              tilt={tilt}
-            />
-          ) : chosenPlanet ? (
-            <PlanetGlance
-              key={chosenPlanet.bookId}
-              planet={chosenPlanet}
               onClose={() => choose(null)}
               tilt={tilt}
             />
@@ -710,37 +704,6 @@ function StarGlance({ star, onClose, tilt }: { star: ChartStar; onClose: () => v
             <Text variant="button">Open book</Text>
           </Pressable>
         ) : null}
-      </Glass>
-    </Rise>
-  );
-}
-
-/** A chosen planet: a book being read, and how far through it the reader is. */
-function PlanetGlance({ planet, onClose, tilt }: { planet: ChartPlanet; onClose: () => void; tilt: Tilt }) {
-  const { colors } = useTheme();
-  const caption = [planet.author, `${Math.round(planet.fill * 100)}% read`].filter(Boolean).join(', ');
-  return (
-    <Rise>
-      <Glass tilt={tilt} style={[styles.glassPad, styles.glanceRow]}>
-        <View style={styles.inHandText}>
-          <Text variant="label">In orbit</Text>
-          <Text variant="heading" numberOfLines={2}>
-            {planet.title}
-          </Text>
-          <Text variant="caption" numberOfLines={2}>
-            {caption}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Light the lamp for ${planet.title}`}
-          onPress={() => {
-            onClose();
-            router.push({ pathname: '/lamp', params: { bookId: planet.bookId } });
-          }}
-          style={[styles.lamp, { backgroundColor: colors.starlight }]}>
-          <LampIcon size={24} weight="regular" color={colors.onStarlight} />
-        </Pressable>
       </Glass>
     </Rise>
   );

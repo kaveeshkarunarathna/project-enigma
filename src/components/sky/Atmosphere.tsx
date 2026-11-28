@@ -322,8 +322,8 @@ export function Atmosphere({
     return () => cancelAnimation(clock);
   }, [reduceMotion, clock]);
 
-  const farMove = usePlaneTransform(tilt, explore, depth.far, w, h, reduceMotion);
-  const milkyMove = usePlaneTransform(tilt, explore, depth.milky, w, h, reduceMotion);
+  const farMove = usePlaneTransform(tilt, explore, depth.far, padX, padY, reduceMotion);
+  const milkyMove = usePlaneTransform(tilt, explore, depth.milky, padX, padY, reduceMotion);
   // Behind a chosen star: dimmer, and (with motion on) a cross-fade to the soft copy.
   const dim = useDerivedValue(() => 1 - depth.focusDim * focus.get());
   const sharpOpacity = useDerivedValue(() => (reduceMotion ? 1 : 1 - focus.get()));
@@ -382,22 +382,40 @@ export function Atmosphere({
   );
 }
 
-/** Same rule as `usePlane`, as a Skia transform about the screen's centre. */
+/**
+ * Eases `v` towards `limit` without ever passing it: almost linear for small
+ * moves, then slower and slower, so the plane keeps a little life however far
+ * the sky is turned but never slides far enough to show its edge.
+ */
+function soft(v: number, limit: number): number {
+  'worklet';
+  return limit <= 0 ? 0 : limit * Math.tanh(v / limit);
+}
+
+/**
+ * Same rule as `usePlane`, as a Skia transform about the screen's centre,
+ * kept inside the plane's margin (`padX`, `padY`): the sky can be turned all
+ * the way round, so the raw shift has no end, and zooming out never shrinks
+ * the plane below the screen.
+ */
 function usePlaneTransform(
   tilt: Tilt,
   explore: Explore,
   plane: DepthPlane,
-  w: number,
-  h: number,
+  padX: number,
+  padY: number,
   still: boolean,
 ) {
   const { width, height } = useWindowDimensions();
+  // Room left for the drag once the tilt has taken its share, with a little to spare.
+  const roomX = padX * 0.9 - plane.tilt;
+  const roomY = padY * 0.9 - plane.tilt;
   return useDerivedValue(() => {
     if (still) return [];
-    const z = 1 + (explore.scale.get() - 1) * plane.k * 0.5;
+    const z = Math.max(1, 1 + (explore.scale.get() - 1) * plane.k * 0.5);
     return [
-      { translateX: width / 2 + explore.dx.get() * plane.k - tilt.x.get() * plane.tilt },
-      { translateY: height / 2 + explore.dy.get() * plane.k - tilt.y.get() * plane.tilt },
+      { translateX: width / 2 + soft(explore.dx.get() * plane.k, roomX) - tilt.x.get() * plane.tilt },
+      { translateY: height / 2 + soft(explore.dy.get() * plane.k, roomY) - tilt.y.get() * plane.tilt },
       { scale: z },
       { translateX: -width / 2 },
       { translateY: -height / 2 },
