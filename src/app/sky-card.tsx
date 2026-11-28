@@ -10,7 +10,7 @@ import { listBooks } from '@/data/books';
 import { useDb } from '@/data/DataProvider';
 import { useLiveQuery } from '@/data/live';
 import { cardSessions, readingNights } from '@/data/sessions';
-import { DEFAULT_SETTINGS, getSettings } from '@/data/settings';
+import { CARD_CHART_VIEWPORT } from '@/domain/cardSky';
 import {
   CARD_PIXELS,
   CARD_SIZE,
@@ -23,6 +23,7 @@ import {
 import { nightKey } from '@/domain/time';
 import { SkyCard, type CardView } from '@/features/share/SkyCard';
 import { CAN_SHARE_CARD, shareCard } from '@/features/share/shareCard';
+import { useStarChart } from '@/features/sky/useStarChart';
 import { space } from '@/theme/tokens';
 
 /**
@@ -45,8 +46,8 @@ export default function SkyCardScreen() {
   const { data: nights } = useLiveQuery(() => readingNights(db), ['sessions']);
   const { data: sessions } = useLiveQuery(() => cardSessions(db, null), ['sessions']);
   const { data: books } = useLiveQuery(() => listBooks(db), ['books']);
-  const { data: settings } = useLiveQuery(() => getSettings(db), ['settings']);
-  const goalMinutes = (settings ?? DEFAULT_SETTINGS).goalMinutes;
+  // The same star chart as the Sky screen, laid out for a phone-sized view.
+  const chart = useStarChart(books, CARD_CHART_VIEWPORT);
 
   const summary = cardSummary(sessions ?? [], books ?? [], period, today);
   const from = periodStart(period, today);
@@ -66,12 +67,11 @@ export default function SkyCardScreen() {
       ref={ref}
       shape={shape}
       width={width}
-      nights={sky}
+      chart={chart}
       from={from}
       summary={summary}
       period={label}
       showTitles={showTitles}
-      goalMinutes={goalMinutes}
     />
   );
 
